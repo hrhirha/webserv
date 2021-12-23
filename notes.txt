@@ -1,0 +1,52 @@
+struct sockaddr_in addr;
+
+addr.sin_port
+addr.sin_addr.s_addr
+
+when you get the "Request" and "ServerCnf[]" and "addr":
+    check "addr" against "ServerCnf[i]".host:port;
+    if you get a match: "matches".push(i)
+    check "ServerCnf[i+1]"
+
+	if "matches".size() > 1 :
+		check "Request".header["Host"] against "ServerCnf".server_names[i]
+		if you get a match : use "ServerCnf".server_names[i]
+		else check "ServerCnf".server_names[i+1]
+		if no matches are found : user Default
+
+----------------------------------------------------------------------
+
+req.path must start with '/'; if not => 400 Bad Request
+consecutive '/' can be skipped (at any position of the path)
+if req.path is a directory and not Terminated with a '/' => 301 Moved Permanently
+
+duplicate locations are not allowed
+
+locs / /dir0/ /dir0/dir00/
+
+path /dir0/dir00/
+
+
+
+path.compare(loc) : path(/dir0/), loc(/dir0/)
+path.compare(0, loc.size(), loc, 0, path.substr(0, path.size()-1).find_last_of('/')): path(/dir0/dir00/), loc(/dir0/)
+
+
+loc.root+req.path
+
+
+if !srv.index and !index.html:
+	if autoindex = true: list files
+	else return 403 Frobidden
+
+
+get info about a file: stat(char* path, struct stat *):
+	S_IFTM (type of file)
+	S_IFDIR (directory)
+	S_IDREG (regular file)
+	eg: stat(path, st);
+		(st.s_mode & S_IFTM) == S_IFDIR => path is dir
+		(st.s_mode & S_IFTM) == S_IFREG => path is file
+	stat() == -1:	errno == EACCESS (Permission denied for one of the path components) => 403 Forbidden
+					errno == ENOENT (file not found) => 404 Not Found
+					errno == ENOTDIR (path component is not dir) => 404 => Not Found
