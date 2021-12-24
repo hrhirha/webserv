@@ -33,9 +33,34 @@ void Response::build(Request const &req, std::vector<ServerCnf> const &serv_cnfs
 	{
 		std::cout << "server: " << srv.host << ":" << srv.port << std::endl;
 		Location loc = srv.locs[_getValidLocation(req, srv.locs)];
-		std::cout << "full path: " << loc.root+req.path << std::endl;
 		if (loc.path == ".php")
-			;// Handle CGI
+		{
+			// Handle CGI
+		}
+		else
+		{
+			std::string fpath = loc.root + req.path;
+			std::cout << "fpath: " << fpath << std::endl;
+			struct stat st;
+			int stat = stat(fpath, &st);
+			if (!stat && (st.st_mode & S_IFMT) == S_IFREG)
+			{
+				// process regular file
+			}
+			else if (!stat)
+			{
+				// process directory
+				if (fpath[fpath.size()-1] != '/')
+				{
+					// return 301 moved Permanently
+					// Location: http://req.headers["Host"]:srv.port
+				}
+				else if (loc.index.size())
+				{
+					fpath += loc.index;
+				}
+			}
+		}
 	}
 }
 
@@ -98,7 +123,6 @@ size_t	Response::_getValidServerCnf(Request const &req, std::vector<ServerCnf> c
 size_t	Response::_getValidLocation(Request const &req, Locations const &locs)
 {
 	size_t j;
-	bool found = true;
 	int loc_idx = -1;
 	if (req.path[0] != '/') // request path doesn't start with '/'
 	{
