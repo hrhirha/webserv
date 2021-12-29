@@ -44,8 +44,8 @@ int main()
 	hs.clear();
 	sns.clear();
 	// server 1
-	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/goinfre/hrhirha/.brew/var/www", "index.html", false));
-	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), "/goinfre/hrhirha/.brew/var/www", "f0", false));
+	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "index.html", false));
+	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "f0", false));
 	ls.push_back(newLocation("/dir0/dir00/", vs(), std::make_pair(0,""), "html", "f0", false));
 	ls.push_back(newLocation(".php", vs(), std::make_pair(0,""), "html", "f0", false));
 	sns.push_back("localhost");
@@ -61,13 +61,15 @@ int main()
 	srvs.push_back(newServer("127.0.0.1", 8000, sns, ls));
 	/////////
 
+	// Request
 	hs.insert(std::make_pair("Host", "localhost"));
-	Request req = {"GET", "/dir0", "", "HTTP/1.1", hs, ""};
+	Request req = {"GET", "/index.html", "", "HTTP/1.1", hs, ""};
 
 	bzero(&addr, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(8000);
 	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	//////////
 
 	res.build(req, srvs, addr);
 	std::cout << "--------------------------------------\n";
@@ -76,7 +78,7 @@ int main()
 
 
 	struct stat buf;
-	std::string path = "/Users/hrhirha/Desktop/wserver/www/dir0i/";
+	std::string path = "/mnt/c/Users/Lenovo/Desktop/webserv/www/red_zone.html";
 	if (stat(path.c_str(), &buf) == 0 && (buf.st_mode & S_IFMT) == S_IFREG)
 	{
 		int fd;
@@ -93,5 +95,6 @@ int main()
 	std::cout << "EIO: " << EIO << std::endl; 			// I/O error while reading or writing to the file system
 	std::cout << "ENOENT: " << ENOENT << std::endl;		// file does not exist
 	std::cout << "ENOTDIR: " << ENOTDIR << std::endl;	// a component of the path is not a directory
-	std::cout << sizeof(struct stat) << "\n";
+	// std::cout << sizeof(struct stat) << "\n";
+
 }

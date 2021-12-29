@@ -3,6 +3,12 @@
 #include <vector>
 #include <arpa/inet.h>
 #include <sstream>
+#include <algorithm>
+#include <strings.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <unistd.h>
 
 typedef std::map<std::string, std::string>	Headers;
 typedef std::vector<std::string>			vs;
@@ -43,6 +49,11 @@ struct ServerCnf
 class Response
 {
 	private:
+		typedef void (Response::*func)(Request const&, Location const&);
+		typedef std::map<std::string, func> func_map;
+		func_map	req_funcs;
+
+	private:
 		static std::string	_httpVersion;
 		int					_statusCode;
 		std::string			_statusMsg;
@@ -52,6 +63,10 @@ class Response
 		size_t	_getValidServerCnf(Request const &, std::vector<ServerCnf> const &,
 				struct sockaddr_in const);
 		size_t	_getValidLocation(Request const &, Locations const &);
+		
+		void _handleGetRequest(Request const &req, Location const &loc);
+		void _handlePostRequest(Request const &req, Location const &loc);
+		void _handleDeleteRequest(Request const &req, Location const &loc);
 
 	public:
 		Response();
