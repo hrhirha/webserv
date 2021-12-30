@@ -45,8 +45,8 @@ int main()
 	sns.clear();
 	// server 1
 	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "index.html", false));
-	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "f0", false));
-	ls.push_back(newLocation("/dir0/dir00/", vs(), std::make_pair(0,""), "html", "f0", false));
+	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", true));
+	ls.push_back(newLocation("/dir0/dir00/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", true));
 	ls.push_back(newLocation(".php", vs(), std::make_pair(0,""), "html", "f0", false));
 	sns.push_back("localhost");
 	srvs.push_back(newServer("127.0.0.1", 8000, sns, ls));
@@ -62,8 +62,8 @@ int main()
 	/////////
 
 	// Request
-	hs.insert(std::make_pair("Host", "localhost"));
-	Request req = {"GET", "/index.html", "", "HTTP/1.1", hs, ""};
+	hs.insert(std::make_pair("Host", "localhost:7777"));
+	Request req = {"GET", "/hizb-001.mp3", "", "HTTP/1.1", hs, ""};
 
 	bzero(&addr, sizeof(addr));
 	addr.sin_family = AF_INET;
@@ -78,15 +78,19 @@ int main()
 
 
 	struct stat buf;
-	std::string path = "/mnt/c/Users/Lenovo/Desktop/webserv/www/red_zone.html";
+	std::string path = "/mnt/c/Users/Lenovo/Desktop/webserv/www/index.html";
 	if (stat(path.c_str(), &buf) == 0 && (buf.st_mode & S_IFMT) == S_IFREG)
 	{
 		int fd;
 		std::cout << "file found" << std::endl;
+		path = "/mnt/c/Users/Lenovo/Desktop/webserv/www/dir0/";
 		if ((fd = open(path.c_str(), O_RDONLY)) == -1)
 			std::cout << "Error (open()): " << errno << std::endl;
 		else
+		{
+			std::cout << "No Error (open()): " << errno << std::endl;
 			close(fd);
+		}
 	}
 	else
 		std::cout << "Error (stat()): " << errno << std::endl;

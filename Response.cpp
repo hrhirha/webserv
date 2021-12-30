@@ -2,12 +2,8 @@
 
 std::string Response::_httpVersion = "HTTP/1.1";
 
-Response::Response() : req_funcs(), _statusCode(0), _statusMsg(), _headers(), _body()
+Response::Response() : _statusCode(0), _statusMsg(), _headers(), _body()
 {
-	req_funcs["GET"] = &Response::_handleGetRequest;
-	req_funcs["POST"] = &Response::_handlePostRequest;
-	req_funcs["DELETE"] = &Response::_handleDeleteRequest;
-	
 	_headers["Server"] = "WebServ/1.0";
 }
 
@@ -36,24 +32,16 @@ void Response::build(Request const &req, std::vector<ServerCnf> const &serv_cnfs
 	ServerCnf srv = serv_cnfs[_getValidServerCnf(req, serv_cnfs, addr)];
 	if (_statusCode == 400)
 	{
-		_statusMsg = "Bad Request";
-		return ;
+		return _res_generate(400, "Bad Request");
 	}
 	//std::cout << "server: " << srv.host << ":" << srv.port << std::endl;
 	Location loc = srv.locs[_getValidLocation(req, srv.locs)];
 
-	(this->*(req_funcs.find(req.method)->second))(req, loc);
-}
-
-std::string ft_utos(size_t n)
-{
-	std::stringstream	ss;
-	std::string			str;
-
-	ss << n;
-	ss >> str;
-
-	return str;
+	vs::iterator first = loc.accepted_methods.begin();
+	vs::iterator last = loc.accepted_methods.end();
+	if (loc.accepted_methods.size() && std::find(first, last, req.method) == last)
+		return _res_generate(405, "Method Not Allowed");
+	(this->*(_req_func(req.method)))(req, loc, srv.port);
 }
 
 std::string Response::toString()
@@ -65,91 +53,127 @@ std::string Response::toString()
 		ret.append(it->first + ": " + it->second + "\r\n");
 	ret.append("\r\n");
 	ret.append(_body);
-
 	return ret;
 }
 
-void Response::_handleGetRequest(Request const &req, Location const &loc)
+Response::func Response::_req_func(std::string method)
 {
+	static std::map<std::string, func>	rf;
+
+	if (rf.size()) return rf[method];
+
+	rf["GET"] = &Response::_handleGetRequest;
+	rf["POST"] = &Response::_handlePostRequest;
+	rf["DELETE"] = &Response::_handleDeleteRequest;
+
+	return rf[method];
+}
+
+// Request Methods Handling
+void Response::_handleGetRequest(Request const &req, Location const &loc, size_t port)
+{
+	struct stat st;
+	int			fd, st_ret;
 
 	std::string fpath = loc.root + req.path;
 	std::cout << "fpath: " << fpath << std::endl;
-	if (loc.path == ".php")
+	if (loc.path == ".php") // Handle CGI
 	{
 		// if cgi_path is provided: send to cgi
 		// else handle it as a static file
 		std::cout << fpath << " to CGI" << std::endl;
-		// Handle CGI
 		return ;
 	}
-	struct stat st;
-	int st_ret = stat(fpath.c_str(), &st);
-	if (!st_ret && S_ISREG(st.st_mode))
+	st_ret = stat(fpath.c_str(), &st);
+	if (!st_ret && S_ISREG(st.st_mode)) // process regular file
 	{
 		std::cout << "static file" << std::endl;
+		fd = open(fpath.c_str(), O_RDONLY);
+		if (fd == -1)
+		{
+			return _res_generate(403, "Forbidden");
+		}
+		return _res_generate(200, "OK", fd, st);
+	}
+	if (!st_ret && S_ISDIR(st.st_mode)) // process directory
+	{
+		if (fpath[fpath.size() - 1] != '/') // request path does't end with '/'
+		{
+			return _res_generate(301, "Moves Permanently", req, port);
+		}
+		fpath += loc.index.size() ? loc.index : "index.html";
+		std::cout << "static file index" << std::endl;
 		// process regular file
-		int fd = open(fpath.c_str(), O_RDONLY);
-		if (fd == -1 && errno == EACCES)
+		fd = open(fpath.c_str(), O_RDONLY);
+		if (fd == -1)
 		{
-			_statusCode = 403;
-			_statusMsg = "Forbidden";
-			return ;
+			if (loc.autoindex) return ; // list files
+			return _res_generate(403, "Forbidden");
 		}
-		_statusCode = 200;
-		_statusMsg = "OK";
-		_headers["Content-Length"] = ft_utos(st.st_size);
-		char buf[1024];
-		while (read(fd, buf, 1024))
-			_body.append(buf);
+		st_ret = fstat(fd, &st);
+		return _res_generate(200, "OK", fd, st);
 	}
-	else if (!st_ret && S_ISDIR(st.st_mode))
-	{
-		// process directory
-		if (fpath[fpath.size() - 2] != '/')
-		{
-			_statusCode = 301;
-			_statusMsg = "Moves Permanently";
-			// return 301 moved Permanently
-			// Location: http://req.headers["Host"]:srv.port
-		}
-		else if (loc.index.size())
-		{
-			fpath += loc.index;
-		}
-	}
-	else
-	{
-		if (errno == EACCES)
-		{
-			_statusCode = 403;
-			_statusMsg = "Forbidden";
-		}
-		else if (errno == ENOENT || errno == ENOTDIR)
-		{
-			_statusCode = 404;
-			_statusMsg = "Not Found";
-		}
-		std::cout << "Error " << errno << std::endl;
-	}
+	if (errno == EACCES)
+		return _res_generate(403, "Forbidden");
+	if (errno == ENOENT || errno == ENOTDIR)
+		return _res_generate(404, "Not Found");
+	std::cout << "Error " << errno << std::endl;
 }
 
-void Response::_handlePostRequest(Request const &req, Location const &loc)
+void Response::_handlePostRequest(Request const &req, Location const &loc, size_t port)
 {
 	(void)req;
 	(void)loc;
+	(void)port;
 }
 
-void Response::_handleDeleteRequest(Request const &req, Location const &loc)
+void Response::_handleDeleteRequest(Request const &req, Location const &loc, size_t port)
 {
 	(void)req;
 	(void)loc;
+	(void)port;
 }
 
+// Response Generation
+void Response::_res_generate(size_t code, std::string msg)
+{
+	_statusCode = code;
+	_statusMsg = msg;
+	_headers["Content-type"] = "text/html";
+	_headers["Content-Length"] = _statusMsg.size();
+	_body = _spec_res(code);
+}
+
+void Response::_res_generate(size_t code, std::string msg, Request req, size_t port)
+{
+	_res_generate(code, msg);
+	std::string lh = req.headers.find("Host")->second;
+	size_t i = lh.find(':');
+	lh = (i == std::string::npos) ? lh : lh.substr(0, i);
+	_headers["Location"] = "http://" + lh + ":" + ft_utos(port) + req.path + "/";
+}
+
+void Response::_res_generate(size_t code, std::string msg, int fd, struct stat st)
+{
+	_statusCode = code;
+	_statusMsg = msg;
+	_headers["Content-Length"] = ft_utos(st.st_size);
+	char buf[1024];
+	int ret = st.st_size;
+	while (ret)
+	{
+		bzero(buf, 1024);
+		ret -= read(fd, buf, 1024);
+		_body.append(buf);
+	}
+}
+
+// Choosing Server Block and Location to use
 size_t Response::_getValidServerCnf(Request const &req, std::vector<ServerCnf> const &serv_cnfs,
 									struct sockaddr_in const addr)
 {
-	std::map<size_t, std::vector<std::string>> valid_cnf;
-	std::map<size_t, std::vector<std::string>>::iterator it;
+	std::map<size_t, std::vector<std::string> > valid_cnf;
+	std::map<size_t, std::vector<std::string> >::iterator it;
 	std::map<std::string, std::string>::const_iterator h_it;
 
 	// find which server block to use based on addr.host, addr.port
@@ -205,4 +229,17 @@ size_t Response::_getValidLocation(Request const &req, Locations const &locs)
 		}
 	}
 	return loc_idx;
+}
+
+// Non-Members
+
+std::string ft_utos(size_t n)
+{
+	std::stringstream	ss;
+	std::string			str;
+
+	ss << n;
+	ss >> str;
+
+	return str;
 }
