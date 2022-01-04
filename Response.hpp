@@ -9,6 +9,13 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sys/time.h>
+#include <cstring>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <cstdio>
+#include <sys/select.h>
+#include <fstream>
 
 typedef std::map<std::string, std::string>	Headers;
 typedef std::vector<std::string>			vs;
@@ -49,7 +56,8 @@ struct ServerCnf
 class Response
 {
 	typedef void (Response::*func)(Request const&, Location const&, size_t);
-
+	func		_req_func(std::string);
+	
 	private:
 		static std::string	_httpVersion;
 		int					_statusCode;
@@ -57,21 +65,27 @@ class Response
 		Headers				_headers;
 		std::string			_body;
 
-		func		_req_func(std::string);
-		std::string	_spec_res(size_t n);
-		std::string	_mime_type(std::string s);
-		
 		size_t	_getValidServerCnf(Request const &, std::vector<ServerCnf> const &,
 				struct sockaddr_in const);
 		size_t	_getValidLocation(Request const &, Locations const &);
 		
-		void _handleGetRequest(Request const &, Location const &, size_t);
-		void _handlePostRequest(Request const &, Location const &, size_t);
-		void _handleDeleteRequest(Request const &, Location const &, size_t);
+		void	_handleGetRequest(Request const &, Location const &, size_t);
+		void	_handlePostRequest(Request const &, Location const &, size_t);
+		void	_handleDeleteRequest(Request const &, Location const &, size_t);
 
-		void _res_generate(size_t, std::string);
-		void _res_generate(size_t, std::string, Request, size_t);
-		void _res_generate(size_t, std::string, int, struct stat);
+		void	_handleRegFile(std::string, struct stat);
+		void	_handleDir(std::string, struct stat, Request const&, Location const&, size_t);
+		void	_handleCGI(Location const&, std::string, std::string);
+
+		void	_getCGIRes(int);
+		int		_readFromCGI(int, std::fstream &, fd_set*, size_t&);
+		bool	_getCgiHeaders();
+
+		void	_resRedir(size_t, Request const&, size_t, std::string);
+		
+		void	_resGenerate(size_t);
+		void	_resGenerate(size_t, Request const&, size_t);
+		void	_resGenerate(size_t, int, std::string, struct stat);
 
 	public:
 		Response();
@@ -83,4 +97,10 @@ class Response
 		std::string toString();
 };
 
-std::string ft_utos(size_t n);
+std::string	specRes(size_t);
+std::string	mimeType(std::string);
+std::string statusMessage(size_t);
+
+std::string utostr(size_t n);
+std::string timeToStr(time_t clock);
+char		**getCGIArgs(char*, char*, char*);

@@ -1,6 +1,20 @@
 #include "Response.hpp"
 
-std::string	Response::_spec_res(size_t n)
+
+Response::func Response::_req_func(std::string method)
+{
+	static std::map<std::string, func>	rf;
+
+	if (rf.size()) return rf[method];
+
+	rf["GET"] = &Response::_handleGetRequest;
+	rf["POST"] = &Response::_handlePostRequest;
+	rf["DELETE"] = &Response::_handleDeleteRequest;
+
+	return rf[method];
+}
+
+std::string	specRes(size_t n)
 {
 	static std::map<int,std::string> sr;
 	
@@ -10,6 +24,14 @@ std::string	Response::_spec_res(size_t n)
 <head><title>301 Moved Permanently</title></head>\r\n\
 <body>\r\n\
 <center><h1>301 Moved Permanently</h1></center>\r\n\
+<hr><center>webserv/1.0</center>\r\n\
+</body>\r\n\
+</html>";
+
+	sr[302]= "<html>\r\n\
+<head><title>302 Found</title></head>\r\n\
+<body>\r\n\
+<center><h1>302 Found</h1></center>\r\n\
 <hr><center>webserv/1.0</center>\r\n\
 </body>\r\n\
 </html>";
@@ -46,10 +68,100 @@ std::string	Response::_spec_res(size_t n)
 </body>\r\n\
 </html>";
 
+	sr[500] = "<html>\r\n\
+<head><title>500 Internal Server Error</title></head>\r\n\
+<body>\r\n\
+<center><h1>500 Internal Server Error</h1></center>\r\n\
+<hr><center>webserv/1.0</center>\r\n\
+</body>\r\n\
+</html>";
+
 	return sr[n];
 }
 
-std::string	Response::_mime_type(std::string s)
+std::string statusMessage(size_t code)
+{
+	static std::map<size_t, std::string> sm;
+
+	if (sm.size()) return sm[code];
+
+	// 1×× Informational
+	sm[100] = "Continue";
+	sm[101] = "Switching Protocols";
+	sm[102] = "Processing";
+
+	//2×× Success
+	sm[200] = "OK";
+	sm[201] = "Created";
+	sm[202] = "Accepted";
+	sm[203] = "Non-authoritative Information";
+	sm[204] = "No Content";
+	sm[205] = "Reset Content";
+	sm[206] = "Partial Content";
+	sm[207] = "Multi-Status";
+	sm[208] = "Already Reported";
+	sm[226] = "IM Used";
+
+	//3×× Redirection
+	// sm[300] = "Multiple Choices";
+	sm[301] = "Moved Permanently";
+	sm[302] = "Moved Temporarily";
+	sm[303] = "See Other";
+	sm[304] = "Not Modified";
+	// sm[305] = "Use Proxy";
+	sm[307] = "Temporary Redirect";
+	sm[308] = "Permanent Redirect";
+
+	// 4×× Client Error
+	sm[400] = "Bad Request";
+	sm[401] = "Unauthorized";
+	sm[402] = "Payment Required";
+	sm[403] = "Forbidden";
+	sm[404] = "Not Found";
+	sm[405] = "Method Not Allowed";
+	sm[406] = "Not Acceptable";
+	sm[407] = "Proxy Authentication Required";
+	sm[408] = "Request Timeout";
+	sm[409] = "Conflict";
+	sm[410] = "Gone";
+	sm[411] = "Length Required";
+	sm[412] = "Precondition Failed";
+	sm[413] = "Payload Too Large";
+	sm[414] = "Request-URI Too Long";
+	sm[415] = "Unsupported Media Type";
+	sm[416] = "Requested Range Not Satisfiable";
+	sm[417] = "Expectation Failed";
+	sm[418] = "I'm a teapot";
+	sm[421] = "Misdirected Request";
+	sm[422] = "Unprocessable Entity";
+	sm[423] = "Locked";
+	sm[424] = "Failed Dependency";
+	sm[426] = "Upgrade Required";
+	sm[428] = "Precondition Required";
+	sm[429] = "Too Many Requests";
+	sm[431] = "Request Header Fields Too Large";
+	sm[444] = "Connection Closed Without Response";
+	sm[451] = "Unavailable For Legal Reasons";
+	sm[499] = "Client Closed Request";
+
+	//5×× Server Error
+	sm[500] = "Internal Server Error";
+	sm[501] = "Not Implemented";
+	sm[502] = "Bad Gateway";
+	sm[503] = "Service Unavailable";
+	sm[504] = "Gateway Timeout";
+	sm[505] = "HTTP Version Not Supported";
+	sm[506] = "Variant Also Negotiates";
+	sm[507] = "Insufficient Storage";
+	sm[508] = "Loop Detected";
+	sm[510] = "Not Extended";
+	sm[511] = "Network Authentication Required";
+	sm[599] = "Network Connect Timeout Error";
+
+	return sm[code];
+}
+
+std::string	mimeType(std::string s)
 {
 	static std::map<std::string,std::string> mt;
 
@@ -174,4 +286,47 @@ std::string	Response::_mime_type(std::string s)
 	std::string ext = s.substr(s.find_last_of('.') + 1);
 	std::map<std::string, std::string>::iterator it = mt.find(ext);
 	return it != mt.end() ? it->second : "application/octet-stream";
+}
+
+std::string utostr(size_t n)
+{
+	std::stringstream	ss;
+	std::string			str;
+
+	ss << n;
+	ss >> str;
+
+	return str;
+}
+
+std::string timeToStr(time_t clock)
+{
+	struct tm	*tm;
+
+	tm = gmtime(&clock);
+	std::string str = asctime(tm);
+	char time[30];
+	strftime(time, 30, "%a, %d %b %y %H:%M:%S GMT", tm);
+	return std::string(time);
+}
+
+char **getCGIArgs(char*cgi_path, char*fpath, char*query)
+{
+	std::vector<char*> args;
+
+	args.push_back(cgi_path);
+	args.push_back(fpath);
+	char *arg = strtok(query, "&");
+	while (arg)
+	{
+		args.push_back(arg);
+		arg = strtok(NULL, "&");
+	}
+	char **ptr = new char*[args.size() + 1];
+	for (size_t i = 0; i < args.size(); i++)
+	{
+		ptr[i] = args[i];
+	}
+	ptr[args.size()] = NULL;
+	return ptr;
 }

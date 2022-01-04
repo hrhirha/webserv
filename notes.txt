@@ -27,14 +27,6 @@ locs / /dir0/ /dir0/dir00/
 path /dir0/dir00/
 
 
-
-path.compare(loc) : path(/dir0/), loc(/dir0/)
-path.compare(0, loc.size(), loc, 0, path.substr(0, path.size()-1).find_last_of('/')): path(/dir0/dir00/), loc(/dir0/)
-
-
-loc.root+req.path
-
-
 if !srv.index and !index.html:
 	if autoindex = true: list files
 	else return 403 Frobidden
@@ -50,3 +42,10 @@ get info about a file: stat(char* path, struct stat *):
 	stat() == -1:	errno == EACCESS (Permission denied for one of the path components) => 403 Forbidden
 					errno == ENOENT (file not found) => 404 Not Found
 					errno == ENOTDIR (path component is not dir) => 404 Not Found
+
+error_page [300, 599]
+
+redirection:
+	300, 305 => body = redir.location; no Location header
+	304 => no body; no Location header
+	301, 302, 303, 307, 308 => set Location header, costum body

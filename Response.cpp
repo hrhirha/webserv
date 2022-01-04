@@ -5,6 +5,7 @@ std::string Response::_httpVersion = "HTTP/1.1";
 Response::Response() : _statusCode(0), _statusMsg(), _headers(), _body()
 {
 	_headers["Server"] = "WebServ/1.0";
+	_headers["Connection"] = "close";
 }
 
 Response::Response(Response const &res) :
@@ -24,6 +25,7 @@ Response &Response::operator= (Response const &res)
 Response::~Response()
 {
 	_headers.clear();
+	// remove(_body.c_str());
 }
 
 void Response::build(Request const &req, std::vector<ServerCnf> const &serv_cnfs,
@@ -31,93 +33,60 @@ void Response::build(Request const &req, std::vector<ServerCnf> const &serv_cnfs
 {
 	ServerCnf srv = serv_cnfs[_getValidServerCnf(req, serv_cnfs, addr)];
 	if (_statusCode == 400)
-	{
-		return _res_generate(400, "Bad Request");
-	}
-	//std::cout << "server: " << srv.host << ":" << srv.port << std::endl;
+		return _resGenerate(400);
 	Location loc = srv.locs[_getValidLocation(req, srv.locs)];
 
 	vs::iterator first = loc.accepted_methods.begin();
 	vs::iterator last = loc.accepted_methods.end();
 	if (loc.accepted_methods.size() && std::find(first, last, req.method) == last)
-		return _res_generate(405, "Method Not Allowed");
+		return _resGenerate(405);
+	if (loc.redirect.first)
+		return _resRedir(loc.redirect.first, req, srv.port, loc.redirect.second);
 	(this->*(_req_func(req.method)))(req, loc, srv.port);
 }
 
 std::string Response::toString()
 {
 	std::string ret = Response::_httpVersion;
+	int			fd;
 
-	ret.append(" " + ft_utos(_statusCode) + " " + _statusMsg + "\r\n");
+	ret.append(" " + utostr(_statusCode) + " " + _statusMsg + "\r\n");
 	for (Headers::iterator it = _headers.begin(); it != _headers.end(); it++)
 		ret.append(it->first + ": " + it->second + "\r\n");
 	ret.append("\r\n");
-	ret.append(_body);
+	fd = open(_body.c_str(), O_RDONLY);
+	char buf[2048];
+	long size = atol(_headers["Content-Length"].c_str());
+	while (size > 0)
+	{
+		std::cout << "size = " << size << "\n";
+		bzero(buf, 2048);
+		size -= read(fd, buf, 2047);
+		ret.append(buf);
+	}
+	close(fd);
 	return ret;
-}
-
-Response::func Response::_req_func(std::string method)
-{
-	static std::map<std::string, func>	rf;
-
-	if (rf.size()) return rf[method];
-
-	rf["GET"] = &Response::_handleGetRequest;
-	rf["POST"] = &Response::_handlePostRequest;
-	rf["DELETE"] = &Response::_handleDeleteRequest;
-
-	return rf[method];
 }
 
 // Request Methods Handling
 void Response::_handleGetRequest(Request const &req, Location const &loc, size_t port)
 {
 	struct stat st;
-	int			fd, st_ret;
+	int			st_ret;
 
 	std::string fpath = loc.root + req.path;
 	std::cout << "fpath: " << fpath << std::endl;
 	if (loc.path == ".php") // Handle CGI
-	{
-		// if cgi_path is provided: send to cgi
-		// else handle it as a static file
-		std::cout << fpath << " to CGI" << std::endl;
-		return ;
-	}
+		return _handleCGI(loc, fpath, req.query);
 	st_ret = stat(fpath.c_str(), &st);
-	if (!st_ret && S_ISREG(st.st_mode)) // process regular file
-	{
-		std::cout << "static file" << std::endl;
-		fd = open(fpath.c_str(), O_RDONLY);
-		if (fd == -1)
-		{
-			return _res_generate(403, "Forbidden");
-		}
-		return _res_generate(200, "OK", fd, st);
-	}
-	if (!st_ret && S_ISDIR(st.st_mode)) // process directory
-	{
-		if (fpath[fpath.size() - 1] != '/') // request path does't end with '/'
-		{
-			return _res_generate(301, "Moves Permanently", req, port);
-		}
-		fpath += loc.index.size() ? loc.index : "index.html";
-		std::cout << "static file index" << std::endl;
-		// process regular file
-		fd = open(fpath.c_str(), O_RDONLY);
-		if (fd == -1)
-		{
-			if (loc.autoindex) return ; // list files
-			return _res_generate(403, "Forbidden");
-		}
-		st_ret = fstat(fd, &st);
-		return _res_generate(200, "OK", fd, st);
-	}
-	if (errno == EACCES)
-		return _res_generate(403, "Forbidden");
+	if (!st_ret && S_ISREG(st.st_mode)) // Handle regular file
+		return _handleRegFile(fpath, st);
+	if (!st_ret /*&& S_ISDIR(st.st_mode)*/) // Handle directory
+		return _handleDir(fpath, st, req, loc, port);
 	if (errno == ENOENT || errno == ENOTDIR)
-		return _res_generate(404, "Not Found");
-	std::cout << "Error " << errno << std::endl;
+		return _resGenerate(404);
+	return _resGenerate(403); // if (errno == EACCES)
+	// std::cout << "Error " << errno << std::endl;
 }
 
 void Response::_handlePostRequest(Request const &req, Location const &loc, size_t port)
@@ -134,38 +103,217 @@ void Response::_handleDeleteRequest(Request const &req, Location const &loc, siz
 	(void)port;
 }
 
-// Response Generation
-void Response::_res_generate(size_t code, std::string msg)
+void Response::_handleRegFile(std::string fpath, struct stat st)
 {
-	_statusCode = code;
-	_statusMsg = msg;
-	_headers["Content-type"] = "text/html";
-	_headers["Content-Length"] = _statusMsg.size();
-	_body = _spec_res(code);
+	std::cout << "static file" << std::endl;
+	int fd = open(fpath.c_str(), O_RDONLY);
+	if (fd == -1)
+	{
+		return _resGenerate(403);
+	}
+	_resGenerate(200, fd, fpath, st);
+	close(fd);
 }
 
-void Response::_res_generate(size_t code, std::string msg, Request req, size_t port)
+void Response::_handleDir(std::string fpath, struct stat st,
+	Request const &req, Location const &loc, size_t port)
 {
-	_res_generate(code, msg);
+	if (fpath[fpath.size() - 1] != '/') // request path does't end with '/'
+	{
+		return _resGenerate(301, req, port);
+	}
+	fpath += loc.index.size() ? loc.index : "index.html";
+	std::cout << "static file index" << std::endl;
+	// process regular file
+	int fd = open(fpath.c_str(), O_RDONLY);
+	if (fd == -1)
+	{
+		if (loc.autoindex) return ; // list files
+		return _resGenerate(403);
+	}
+	fstat(fd, &st);
+	_resGenerate(200, fd, fpath, st);
+	close(fd);
+}
+
+void Response::_handleCGI(Location const &loc, std::string fpath, std::string query)
+{
+	int		pid;
+	int		fd[2];
+	char	**args;
+
+	(void)loc;
+	std::cout << "CGI handling" << std::endl;
+	int fdes = open(fpath.c_str(), O_RDONLY);
+	if ( fdes == -1 && (errno == ENOENT || errno == ENOTDIR))
+		return _resGenerate(404);
+	if (fdes == -1) return _resGenerate(403); // if (errno == EACCES)
+	close(fdes);
+	char cgi_path[] = "/usr/bin/php-cgi";
+	args = getCGIArgs(cgi_path, (char*)fpath.c_str(), (char*)query.c_str());
+	if (pipe(fd) == -1) return _resGenerate(500);
+	if ((pid = fork()) == -1) return _resGenerate(500);
+	if(!pid)
+	{
+		dup2(fd[1], 1);
+		execv(args[0], args);
+	}
+	wait(NULL);
+	delete [] args;
+	close(fd[1]);
+	return _getCGIRes(fd[0]);
+	close(fd[0]);
+}
+
+void Response::_getCGIRes(int fd)
+{
+	fd_set			set;
+	struct timeval	tv;
+	std::fstream	fs;
+	size_t			size = 0;
+
+	gettimeofday(&tv, NULL);
+	std::string file = "/tmp/cgi_" + utostr(tv.tv_sec*1e6 + tv.tv_usec) + ".txt";
+	fs.open(file.c_str(), std::ios_base::out | std::ios_base::binary);
+
+	FD_ZERO(&set);
+	FD_SET(fd, &set);
+	while (1)
+	{
+		int rd =_readFromCGI(fd, fs, &set, size);
+		if (rd == -1)
+			return _resGenerate(500);
+		if (!rd) break ;
+	}
+	if (size)
+	{
+		_body = file;
+		_headers["Content-Length"] = utostr(size);
+	}
+	close(fd);
+	fs.close();
+	_body = file;
+}
+
+int Response::_readFromCGI(int fd, std::fstream &fs, fd_set *set, size_t &size)
+{
+	char			buf[8];
+	(void)set;
+	// struct timeval	tv;
+	// fd_set			rset;
+	
+	// tv.tv_sec = 0; tv.tv_usec = 1e3;
+	// FD_ZERO(&rset);
+	// rset = *set;
+	// if (select(fd+1, &rset, NULL, NULL, &tv) == -1)
+	// {
+	// 	close(fd);
+	// 	return -1;
+	// }
+	// std::cout << FD_ISSET(fd, &rset) << std::endl;
+	// if (!FD_ISSET(fd, &rset))
+	// 	return 0;
+	bzero(buf, 8);
+	if (!read(fd, buf, 7)) return 0;
+	_body.append(buf);
+	if (_getCgiHeaders())
+	{
+		size += _body.size();
+		fs << _body;
+		_body.clear();
+	}
+	// FD_CLR(fd, set);
+	return 1;
+}
+
+bool Response::_getCgiHeaders()
+{
+	static bool done = false;
+	std::string h("");
+	size_t i, j;
+
+	if (done) return true;
+
+	i = _body.find("\r\n\r\n");
+	if (i == std::string::npos)
+		return false;
+	done = true;
+	h = _body.substr(0, i+2);
+	_body = _body.substr(i+4);
+	i = h.find("\r\n");
+	while (i != std::string::npos)
+	{
+		std::string sub = h.substr(0, i);
+		h = h.substr(i+2);
+		j = sub.find(":");
+		if (j != std::string::npos)
+			_headers[sub.substr(0, j)] = sub.substr(j+2);
+		i = h.find("\r\n");
+	}
+	return true;
+}
+
+// Redirection
+void Response::_resRedir(size_t code, Request const &req, size_t port, std::string redir)
+{
+	_resGenerate(code);
+	if (redir[0] != '/')
+	{
+		_headers["Location"] = redir;
+		return ;
+	}
 	std::string lh = req.headers.find("Host")->second;
 	size_t i = lh.find(':');
 	lh = (i == std::string::npos) ? lh : lh.substr(0, i);
-	_headers["Location"] = "http://" + lh + ":" + ft_utos(port) + req.path + "/";
+	_headers["Location"] = "http://" + lh + ":" + utostr(port) + redir;
 }
 
-void Response::_res_generate(size_t code, std::string msg, int fd, struct stat st)
+// Response Generation
+void Response::_resGenerate(size_t code)
 {
+	struct timeval	tv;
+	std::fstream	fs;
+
+	gettimeofday(&tv, NULL);
+	_body = "/tmp/" + utostr(code) + "_" + utostr(tv.tv_sec*1e6 + tv.tv_usec) + ".html";
+	fs.open(_body.c_str(), std::ios_base::out | std::ios_base::binary);
 	_statusCode = code;
-	_statusMsg = msg;
-	_headers["Content-Length"] = ft_utos(st.st_size);
-	char buf[1024];
-	int ret = st.st_size;
-	while (ret)
-	{
-		bzero(buf, 1024);
-		ret -= read(fd, buf, 1024);
-		_body.append(buf);
-	}
+	_statusMsg = statusMessage(code);
+	// check if code is in error_page
+	fs << specRes(code);
+	fs.close();
+	_headers["Content-type"] = "text/html";
+	_headers["Content-Length"] = utostr(_body.size());
+	_headers["Date"] = timeToStr(time(NULL));
+}
+
+void Response::_resGenerate(size_t code, Request const &req, size_t port)
+{
+	_resGenerate(code);
+	std::string lh = req.headers.find("Host")->second;
+	size_t i = lh.find(':');
+	lh = (i == std::string::npos) ? lh : lh.substr(0, i);
+	_headers["Location"] = "http://" + lh + ":" + utostr(port) + req.path + "/";
+}
+
+void Response::_resGenerate(size_t code, int fd, std::string  fpath, struct stat st)
+{
+	(void)fd;
+	_statusCode = code;
+	_statusMsg = statusMessage(code);
+	_headers["Content-Length"] = utostr(st.st_size);
+	_headers["Date"] = timeToStr(time(NULL));
+	_headers["Content-Type"] = mimeType(fpath);
+	_headers["Last-Modified"] = timeToStr(st.st_mtime);
+	_body = fpath;
+	// char buf[1024];
+	// int ret = st.st_size;
+	// while (ret)
+	// {
+	// 	bzero(buf, 1024);
+	// 	ret -= read(fd, buf, 1024);
+	// 	_body.append(buf);
+	// }
 }
 
 // Choosing Server Block and Location to use
@@ -229,17 +377,4 @@ size_t Response::_getValidLocation(Request const &req, Locations const &locs)
 		}
 	}
 	return loc_idx;
-}
-
-// Non-Members
-
-std::string ft_utos(size_t n)
-{
-	std::stringstream	ss;
-	std::string			str;
-
-	ss << n;
-	ss >> str;
-
-	return str;
 }

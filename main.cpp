@@ -45,9 +45,9 @@ int main()
 	sns.clear();
 	// server 1
 	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "index.html", false));
-	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", true));
+	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(421,"/dir0/dir00"), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", true));
 	ls.push_back(newLocation("/dir0/dir00/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", true));
-	ls.push_back(newLocation(".php", vs(), std::make_pair(0,""), "html", "f0", false));
+	ls.push_back(newLocation(".php", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", false));
 	sns.push_back("localhost");
 	srvs.push_back(newServer("127.0.0.1", 8000, sns, ls));
 	//////////
@@ -62,8 +62,8 @@ int main()
 	/////////
 
 	// Request
-	hs.insert(std::make_pair("Host", "localhost:7777"));
-	Request req = {"GET", "/hizb-001.mp3", "", "HTTP/1.1", hs, ""};
+	hs.insert(std::make_pair("Host", "localhost"));
+	Request req = {"GET", "/hello.php", "name=Hamza&password=Pass@123!!", "HTTP/1.1", hs, ""};
 
 	bzero(&addr, sizeof(addr));
 	addr.sin_family = AF_INET;
@@ -76,7 +76,7 @@ int main()
 	std::cout << res.toString() << std::endl;
 	std::cout << "--------------------------------------\n";
 
-
+/*
 	struct stat buf;
 	std::string path = "/mnt/c/Users/Lenovo/Desktop/webserv/www/index.html";
 	if (stat(path.c_str(), &buf) == 0 && (buf.st_mode & S_IFMT) == S_IFREG)
@@ -101,4 +101,13 @@ int main()
 	std::cout << "ENOTDIR: " << ENOTDIR << std::endl;	// a component of the path is not a directory
 	// std::cout << sizeof(struct stat) << "\n";
 
+	time_t clock;
+	struct tm tm;
+
+	time(&clock);
+	tm = *gmtime(&clock);
+	std::cout << tm.tm_hour << ":" << tm.tm_min << ":" << tm.tm_sec << " - " << tm.tm_mday << "/" << tm.tm_mon+1 << "/" << 1900+tm.tm_year << std::endl;
+	std::cout << asctime(&tm) << std::endl;
+*/
+	//while (1) {}
 }
