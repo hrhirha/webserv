@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <sys/select.h>
 #include <fstream>
+#include <limits>
 
 typedef std::map<std::string, std::string>	Headers;
 typedef std::vector<std::string>			vs;
@@ -55,7 +56,7 @@ struct ServerCnf
 
 class Response
 {
-	typedef void (Response::*func)(Request const&, Location const&, size_t);
+	typedef void (Response::*func)(Location const&, size_t);
 	func		_req_func(std::string);
 	
 	private:
@@ -64,27 +65,28 @@ class Response
 		std::string			_statusMsg;
 		Headers				_headers;
 		std::string			_body;
+		Request				_req;
+		ServerCnf			_srv;
 
-		size_t	_getValidServerCnf(Request const &, std::vector<ServerCnf> const &,
-				struct sockaddr_in const);
-		size_t	_getValidLocation(Request const &, Locations const &);
+		size_t	_getValidServerCnf(std::vector<ServerCnf> const &, struct sockaddr_in const);
+		size_t	_getValidLocation(Locations const &);
 		
-		void	_handleGetRequest(Request const &, Location const &, size_t);
-		void	_handlePostRequest(Request const &, Location const &, size_t);
-		void	_handleDeleteRequest(Request const &, Location const &, size_t);
+		void	_handleGetRequest(Location const &, size_t);
+		void	_handlePostRequest(Location const &, size_t);
+		void	_handleDeleteRequest(Location const &, size_t);
 
 		void	_handleRegFile(std::string, struct stat);
-		void	_handleDir(std::string, struct stat, Request const&, Location const&, size_t);
+		void	_handleDir(std::string, struct stat, Location const&, size_t);
 		void	_handleCGI(Location const&, std::string, std::string);
 
 		void	_getCGIRes(int);
 		int		_readFromCGI(int, std::fstream &, fd_set*, size_t&);
 		bool	_getCgiHeaders();
 
-		void	_resRedir(size_t, Request const&, size_t, std::string);
+		void	_resRedir(size_t, size_t, std::string);
 		
 		void	_resGenerate(size_t);
-		void	_resGenerate(size_t, Request const&, size_t);
+		void	_resGenerate(size_t, size_t);
 		void	_resGenerate(size_t, int, std::string, struct stat);
 
 	public:

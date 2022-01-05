@@ -2,7 +2,8 @@
 
 std::string Response::_httpVersion = "HTTP/1.1";
 
-Response::Response() : _statusCode(0), _statusMsg(), _headers(), _body()
+Response::Response() :
+	_statusCode(0), _statusMsg(), _headers(), _body(), _req(), _srv()
 {
 	_headers["Server"] = "WebServ/1.0";
 	_headers["Connection"] = "close";
@@ -10,7 +11,7 @@ Response::Response() : _statusCode(0), _statusMsg(), _headers(), _body()
 
 Response::Response(Response const &res) :
 	_statusCode(res._statusCode), _statusMsg(res._statusMsg),
-	_headers(res._headers), _body(res._body)
+	_headers(res._headers), _body(res._body), _req(res._req), _srv(res._srv)
 {}
 
 Response &Response::operator= (Response const &res)
@@ -29,20 +30,21 @@ Response::~Response()
 }
 
 void Response::build(Request const &req, std::vector<ServerCnf> const &serv_cnfs,
-		struct sockaddr_in const addr)
+	struct sockaddr_in const addr)
 {
-	ServerCnf srv = serv_cnfs[_getValidServerCnf(req, serv_cnfs, addr)];
+	_req = req;
+	_srv = serv_cnfs[_getValidServerCnf(serv_cnfs, addr)];
 	if (_statusCode == 400)
 		return _resGenerate(400);
-	Location loc = srv.locs[_getValidLocation(req, srv.locs)];
+	Location loc = _srv.locs[_getValidLocation(_srv.locs)];
 
 	vs::iterator first = loc.accepted_methods.begin();
 	vs::iterator last = loc.accepted_methods.end();
-	if (loc.accepted_methods.size() && std::find(first, last, req.method) == last)
+	if (loc.accepted_methods.size() && std::find(first, last, _req.method) == last)
 		return _resGenerate(405);
 	if (loc.redirect.first)
-		return _resRedir(loc.redirect.first, req, srv.port, loc.redirect.second);
-	(this->*(_req_func(req.method)))(req, loc, srv.port);
+		return _resRedir(loc.redirect.first, _srv.port, loc.redirect.second);
+	(this->*(_req_func(_req.method)))(loc, _srv.port);
 }
 
 std::string Response::toString()
@@ -59,7 +61,6 @@ std::string Response::toString()
 	long size = atol(_headers["Content-Length"].c_str());
 	while (size > 0)
 	{
-		std::cout << "size = " << size << "\n";
 		bzero(buf, 2048);
 		size -= read(fd, buf, 2047);
 		ret.append(buf);
@@ -69,40 +70,41 @@ std::string Response::toString()
 }
 
 // Request Methods Handling
-void Response::_handleGetRequest(Request const &req, Location const &loc, size_t port)
+void Response::_handleGetRequest(Location const &loc, size_t port)
 {
 	struct stat st;
 	int			st_ret;
 
-	std::string fpath = loc.root + req.path;
+	std::string fpath = loc.root + _req.path;
 	std::cout << "fpath: " << fpath << std::endl;
 	if (loc.path == ".php") // Handle CGI
-		return _handleCGI(loc, fpath, req.query);
+		return _handleCGI(loc, fpath, _req.query);
 	st_ret = stat(fpath.c_str(), &st);
 	if (!st_ret && S_ISREG(st.st_mode)) // Handle regular file
 		return _handleRegFile(fpath, st);
 	if (!st_ret /*&& S_ISDIR(st.st_mode)*/) // Handle directory
-		return _handleDir(fpath, st, req, loc, port);
+		return _handleDir(fpath, st, loc, port);
 	if (errno == ENOENT || errno == ENOTDIR)
 		return _resGenerate(404);
 	return _resGenerate(403); // if (errno == EACCES)
 	// std::cout << "Error " << errno << std::endl;
 }
 
-void Response::_handlePostRequest(Request const &req, Location const &loc, size_t port)
+void Response::_handlePostRequest(Location const &loc, size_t port)
 {
-	(void)req;
 	(void)loc;
 	(void)port;
+	std::cout << "Post Request" << std::endl;
 }
 
-void Response::_handleDeleteRequest(Request const &req, Location const &loc, size_t port)
+void Response::_handleDeleteRequest(Location const &loc, size_t port)
 {
-	(void)req;
 	(void)loc;
 	(void)port;
+	std::cout << "Delete Request" << std::endl;
 }
 
+// Request path handling
 void Response::_handleRegFile(std::string fpath, struct stat st)
 {
 	std::cout << "static file" << std::endl;
@@ -116,13 +118,19 @@ void Response::_handleRegFile(std::string fpath, struct stat st)
 }
 
 void Response::_handleDir(std::string fpath, struct stat st,
-	Request const &req, Location const &loc, size_t port)
+	Location const &loc, size_t port)
 {
-	if (fpath[fpath.size() - 1] != '/') // request path does't end with '/'
+	if (fpath[fpath.size() - 1] != '/') // _request path does't end with '/'
 	{
-		return _resGenerate(301, req, port);
+		return _resGenerate(301, port);
 	}
 	fpath += loc.index.size() ? loc.index : "index.html";
+	_req.path = fpath;
+	Location cgi_loc = _srv.locs[_getValidLocation(_srv.locs)];
+	if (fpath.substr(fpath.size()-4) == ".php" && cgi_loc.path == ".php")
+	{
+		return _handleCGI(cgi_loc, fpath, _req.query);
+	}
 	std::cout << "static file index" << std::endl;
 	// process regular file
 	int fd = open(fpath.c_str(), O_RDONLY);
@@ -155,12 +163,13 @@ void Response::_handleCGI(Location const &loc, std::string fpath, std::string qu
 	if ((pid = fork()) == -1) return _resGenerate(500);
 	if(!pid)
 	{
-		dup2(fd[1], 1);
-		execv(args[0], args);
+		fcntl(fd[1], F_SETFL, O_NONBLOCK);
+		dup2(fd[1], STDOUT_FILENO);
+		execve(args[0], args, NULL);
 	}
 	wait(NULL);
-	delete [] args;
 	close(fd[1]);
+	delete [] args;
 	return _getCGIRes(fd[0]);
 	close(fd[0]);
 }
@@ -182,7 +191,13 @@ void Response::_getCGIRes(int fd)
 	{
 		int rd =_readFromCGI(fd, fs, &set, size);
 		if (rd == -1)
+		{
+			fs.close();
+			close(fd);
+			remove(file.c_str());
+			_headers.erase("Content-type");
 			return _resGenerate(500);
+		}
 		if (!rd) break ;
 	}
 	if (size)
@@ -190,9 +205,12 @@ void Response::_getCGIRes(int fd)
 		_body = file;
 		_headers["Content-Length"] = utostr(size);
 	}
-	close(fd);
+	_headers["Date"] = timeToStr(time(NULL));
 	fs.close();
+	close(fd);
 	_body = file;
+	_statusCode = 200;
+	_statusMsg = statusMessage(200);
 }
 
 int Response::_readFromCGI(int fd, std::fstream &fs, fd_set *set, size_t &size)
@@ -215,9 +233,17 @@ int Response::_readFromCGI(int fd, std::fstream &fs, fd_set *set, size_t &size)
 	// 	return 0;
 	bzero(buf, 8);
 	if (!read(fd, buf, 7)) return 0;
+		// std::cout << "DEBUG" << std::endl;
 	_body.append(buf);
 	if (_getCgiHeaders())
 	{
+		Headers::iterator it = _headers.find("Status");
+		if (it != _headers.end())
+		{
+			// std::cout << it->second << std::endl;
+			_headers.erase(it);
+			return -1;
+		}
 		size += _body.size();
 		fs << _body;
 		_body.clear();
@@ -247,14 +273,16 @@ bool Response::_getCgiHeaders()
 		h = h.substr(i+2);
 		j = sub.find(":");
 		if (j != std::string::npos)
+		{
 			_headers[sub.substr(0, j)] = sub.substr(j+2);
+		}
 		i = h.find("\r\n");
 	}
 	return true;
 }
 
 // Redirection
-void Response::_resRedir(size_t code, Request const &req, size_t port, std::string redir)
+void Response::_resRedir(size_t code, size_t port, std::string redir)
 {
 	_resGenerate(code);
 	if (redir[0] != '/')
@@ -262,7 +290,7 @@ void Response::_resRedir(size_t code, Request const &req, size_t port, std::stri
 		_headers["Location"] = redir;
 		return ;
 	}
-	std::string lh = req.headers.find("Host")->second;
+	std::string lh = _req.headers.find("Host")->second;
 	size_t i = lh.find(':');
 	lh = (i == std::string::npos) ? lh : lh.substr(0, i);
 	_headers["Location"] = "http://" + lh + ":" + utostr(port) + redir;
@@ -282,21 +310,21 @@ void Response::_resGenerate(size_t code)
 	// check if code is in error_page
 	fs << specRes(code);
 	fs.close();
-	_headers["Content-type"] = "text/html";
+	_headers["Content-Type"] = "text/html";
 	_headers["Content-Length"] = utostr(_body.size());
 	_headers["Date"] = timeToStr(time(NULL));
 }
 
-void Response::_resGenerate(size_t code, Request const &req, size_t port)
+void Response::_resGenerate(size_t code, size_t port)
 {
 	_resGenerate(code);
-	std::string lh = req.headers.find("Host")->second;
+	std::string lh = _req.headers.find("Host")->second;
 	size_t i = lh.find(':');
 	lh = (i == std::string::npos) ? lh : lh.substr(0, i);
-	_headers["Location"] = "http://" + lh + ":" + utostr(port) + req.path + "/";
+	_headers["Location"] = "http://" + lh + ":" + utostr(port) + _req.path + "/";
 }
 
-void Response::_resGenerate(size_t code, int fd, std::string  fpath, struct stat st)
+void Response::_resGenerate(size_t code, int fd, std::string fpath, struct stat st)
 {
 	(void)fd;
 	_statusCode = code;
@@ -317,8 +345,8 @@ void Response::_resGenerate(size_t code, int fd, std::string  fpath, struct stat
 }
 
 // Choosing Server Block and Location to use
-size_t Response::_getValidServerCnf(Request const &req, std::vector<ServerCnf> const &serv_cnfs,
-									struct sockaddr_in const addr)
+size_t Response::_getValidServerCnf(std::vector<ServerCnf> const &serv_cnfs,
+	struct sockaddr_in const addr)
 {
 	std::map<size_t, std::vector<std::string> > valid_cnf;
 	std::map<size_t, std::vector<std::string> >::iterator it;
@@ -338,8 +366,8 @@ size_t Response::_getValidServerCnf(Request const &req, std::vector<ServerCnf> c
 	// check the "Host" header against server blocks' "server_names"
 
 	std::string host = "";
-	h_it = req.headers.find("Host");
-	if (h_it == req.headers.end() || h_it->second.find(' ') != std::string::npos)
+	h_it = _req.headers.find("Host");
+	if (h_it == _req.headers.end() || h_it->second.find(' ') != std::string::npos)
 	{
 		// 400 Bad Request
 		_statusCode = 400;
@@ -356,20 +384,20 @@ size_t Response::_getValidServerCnf(Request const &req, std::vector<ServerCnf> c
 	return 0;
 }
 
-size_t Response::_getValidLocation(Request const &req, Locations const &locs)
+size_t Response::_getValidLocation(Locations const &locs)
 {
 	size_t j;
 	int loc_idx = -1;
-	if (req.path[0] != '/') // request path doesn't start with '/'
+	if (_req.path[0] != '/') // _request path doesn't start with '/'
 	{
 		_statusCode = 400;
 		return 0;
 	}
-	j = req.path.find_last_of('/');
-	std::string path = req.path.substr(0, j + 1);
+	j = _req.path.find_last_of('/');
+	std::string path = _req.path.substr(0, j + 1);
 	for (size_t i = 0; i < locs.size(); i++)
 	{
-		if (req.path.size() > 4 && req.path.substr(req.path.size() - 4) == ".php" && locs[i].path == ".php")
+		if (_req.path.size() > 4 && _req.path.substr(_req.path.size() - 4) == ".php" && locs[i].path == ".php")
 			return i;
 		if (path.size() >= locs[i].path.size() && locs[i].path == path.substr(0, locs[i].path.size()) && (loc_idx == -1 || locs[i].path.size() > locs[loc_idx].path.size()))
 		{

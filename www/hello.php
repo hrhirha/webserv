@@ -3,5 +3,5 @@
 	$name = $_GET["name"];
 	$pass = $_GET["password"];
 
-	echo "Welcome $name, your password is $pass; don't share it with anyone\n";
+	echo "Welcome $name, your password is $pass; don't share it with anyone";
 ?>
