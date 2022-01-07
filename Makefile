@@ -23,5 +23,6 @@ $(NAME):
 
 clean:
 	@rm -rf $(NAME)
+	@rm -rf $(NAME).dSYM
 
 re: clean all

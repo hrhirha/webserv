@@ -125,18 +125,19 @@ void Response::_handleDir(std::string fpath, struct stat st,
 		return _resGenerate(301, port);
 	}
 	fpath += loc.index.size() ? loc.index : "index.html";
-	_req.path = fpath;
+	std::swap(_req.path, fpath);
 	Location cgi_loc = _srv.locs[_getValidLocation(_srv.locs)];
 	if (fpath.substr(fpath.size()-4) == ".php" && cgi_loc.path == ".php")
 	{
 		return _handleCGI(cgi_loc, fpath, _req.query);
 	}
+	std::swap(_req.path, fpath);
 	std::cout << "static file index" << std::endl;
 	// process regular file
 	int fd = open(fpath.c_str(), O_RDONLY);
 	if (fd == -1)
 	{
-		if (loc.autoindex) return ; // list files
+		if (loc.autoindex) return ; // list_files(_req.path)
 		return _resGenerate(403);
 	}
 	fstat(fd, &st);
@@ -144,34 +145,54 @@ void Response::_handleDir(std::string fpath, struct stat st,
 	close(fd);
 }
 
+void Response::_file_listing()
+{
+}
+
 void Response::_handleCGI(Location const &loc, std::string fpath, std::string query)
 {
 	int		pid;
-	int		fd[2];
+	// int		fd[2];
 	char	**args;
 
 	(void)loc;
 	std::cout << "CGI handling" << std::endl;
-	int fdes = open(fpath.c_str(), O_RDONLY);
-	if ( fdes == -1 && (errno == ENOENT || errno == ENOTDIR))
-		return _resGenerate(404);
-	if (fdes == -1) return _resGenerate(403); // if (errno == EACCES)
-	close(fdes);
-	char cgi_path[] = "/usr/bin/php-cgi";
+	// char cgi_path[] = "/usr/bin/php-cgi";
+	char cgi_path[] = "/Users/hrhirha/goinfre/.brew/bin/php-cgi";
 	args = getCGIArgs(cgi_path, (char*)fpath.c_str(), (char*)query.c_str());
-	if (pipe(fd) == -1) return _resGenerate(500);
+
+	struct timeval	tv;
+	gettimeofday(&tv, NULL);
+	std::string file = "tmp/cgi_" + utostr(tv.tv_sec*1e6 + tv.tv_usec) + ".txt";
+	_fd = open(file.c_str(), O_RDWR | O_CREAT, 0644);
+
+	// int out = dup(1);
 	if ((pid = fork()) == -1) return _resGenerate(500);
 	if(!pid)
 	{
-		fcntl(fd[1], F_SETFL, O_NONBLOCK);
-		dup2(fd[1], STDOUT_FILENO);
+		dup2(_fd, 1);
 		execve(args[0], args, NULL);
 	}
 	wait(NULL);
-	close(fd[1]);
+	// close(fd[1]);
 	delete [] args;
-	return _getCGIRes(fd[0]);
-	close(fd[0]);
+
+	lseek(_fd, 0, SEEK_SET);
+	std::cout << "------------------------------------------\n";
+	char buf[1024];
+	bzero(buf, 1024);
+	read(_fd, buf, 1023);
+	std::cout << "buf: " << buf << std::endl;
+	
+	int sk = lseek(_fd, std::string(buf).find("\r\n\r\n")+4, SEEK_SET);
+	std::cout << "seek: " << sk << ", errno = " << errno << std::endl;
+
+	bzero(buf, 1024);
+	read(_fd, buf, 1023);	
+	std::cout << "buf: " << buf << std::endl;
+	std::cout << "------------------------------------------\n";
+	// return _getCGIRes(fd[0]);
+	// close(fd[0]);
 }
 
 void Response::_getCGIRes(int fd)

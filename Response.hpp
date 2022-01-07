@@ -65,6 +65,7 @@ class Response
 		std::string			_statusMsg;
 		Headers				_headers;
 		std::string			_body;
+		int					_fd;
 		Request				_req;
 		ServerCnf			_srv;
 
@@ -77,6 +78,7 @@ class Response
 
 		void	_handleRegFile(std::string, struct stat);
 		void	_handleDir(std::string, struct stat, Location const&, size_t);
+		void	_file_listing();
 		void	_handleCGI(Location const&, std::string, std::string);
 
 		void	_getCGIRes(int);
