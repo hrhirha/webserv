@@ -56,7 +56,7 @@ struct ServerCnf
 
 class Response
 {
-	typedef void (Response::*func)(Location const&, size_t);
+	typedef bool (Response::*func)(Location const&, size_t);
 	func		_req_func(std::string);
 	
 	private:
@@ -65,31 +65,33 @@ class Response
 		std::string			_statusMsg;
 		Headers				_headers;
 		std::string			_body;
-		int					_fd;
 		Request				_req;
 		ServerCnf			_srv;
+		int					_pid;
+		int					_fd;
+		time_t				_timeout;
 
 		size_t	_getValidServerCnf(std::vector<ServerCnf> const &, struct sockaddr_in const);
 		size_t	_getValidLocation(Locations const &);
 		
-		void	_handleGetRequest(Location const &, size_t);
-		void	_handlePostRequest(Location const &, size_t);
-		void	_handleDeleteRequest(Location const &, size_t);
+		bool	_handleGetRequest(Location const &, size_t);
+		bool	_handlePostRequest(Location const &, size_t);
+		bool	_handleDeleteRequest(Location const &, size_t);
 
-		void	_handleRegFile(std::string, struct stat);
-		void	_handleDir(std::string, struct stat, Location const&, size_t);
-		void	_file_listing();
-		void	_handleCGI(Location const&, std::string, std::string);
+		bool	_handleRegFile(std::string, struct stat);
+		bool	_handleDir(std::string, struct stat, Location const&, size_t);
+		bool	_fileListing(std::string&);
+		bool	_handleCGI(Location const&, std::string, std::string);
 
-		void	_getCGIRes(int);
-		int		_readFromCGI(int, std::fstream &, fd_set*, size_t&);
-		bool	_getCgiHeaders();
+		bool	_waitProc();
+		bool	_readFromCGI();
+		bool	_getCgiHeaders(std::string &);
 
-		void	_resRedir(size_t, size_t, std::string);
+		bool	_resRedir(size_t, size_t, std::string);
 		
-		void	_resGenerate(size_t);
-		void	_resGenerate(size_t, size_t);
-		void	_resGenerate(size_t, int, std::string, struct stat);
+		bool	_resGenerate(size_t);
+		bool	_resGenerate(size_t, size_t);
+		bool	_resGenerate(size_t, std::string, struct stat);
 
 	public:
 		Response();
@@ -97,7 +99,7 @@ class Response
 		Response &operator= (Response const &);
 		~Response();
 
-		void build(Request const &, std::vector<ServerCnf> const &, struct sockaddr_in const);
+		bool build(Request const &, std::vector<ServerCnf> const &, struct sockaddr_in const);
 		std::string toString();
 };
 
@@ -106,5 +108,6 @@ std::string	mimeType(std::string);
 std::string statusMessage(size_t);
 
 std::string utostr(size_t n);
+size_t		strtou(std::string s);
 std::string timeToStr(time_t clock);
 char		**getCGIArgs(char*, char*, char*);

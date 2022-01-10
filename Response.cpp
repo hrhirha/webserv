@@ -2,16 +2,16 @@
 
 std::string Response::_httpVersion = "HTTP/1.1";
 
-Response::Response() :
-	_statusCode(0), _statusMsg(), _headers(), _body(), _req(), _srv()
+Response::Response() : _statusCode(0), _statusMsg(), _headers(), _body(),
+	_req(), _srv(), _pid(-1), _fd(-1)
 {
 	_headers["Server"] = "WebServ/1.0";
 	_headers["Connection"] = "close";
 }
 
 Response::Response(Response const &res) :
-	_statusCode(res._statusCode), _statusMsg(res._statusMsg),
-	_headers(res._headers), _body(res._body), _req(res._req), _srv(res._srv)
+	_statusCode(res._statusCode), _statusMsg(res._statusMsg), _headers(res._headers),
+	_body(res._body), _req(res._req), _srv(res._srv)
 {}
 
 Response &Response::operator= (Response const &res)
@@ -29,9 +29,10 @@ Response::~Response()
 	// remove(_body.c_str());
 }
 
-void Response::build(Request const &req, std::vector<ServerCnf> const &serv_cnfs,
+bool Response::build(Request const &req, std::vector<ServerCnf> const &serv_cnfs,
 	struct sockaddr_in const addr)
 {
+	if (_pid >= 0) return _waitProc();
 	_req = req;
 	_srv = serv_cnfs[_getValidServerCnf(serv_cnfs, addr)];
 	if (_statusCode == 400)
@@ -44,33 +45,33 @@ void Response::build(Request const &req, std::vector<ServerCnf> const &serv_cnfs
 		return _resGenerate(405);
 	if (loc.redirect.first)
 		return _resRedir(loc.redirect.first, _srv.port, loc.redirect.second);
-	(this->*(_req_func(_req.method)))(loc, _srv.port);
+	return (this->*(_req_func(_req.method)))(loc, _srv.port);
 }
 
 std::string Response::toString()
 {
 	std::string ret = Response::_httpVersion;
-	int			fd;
 
 	ret.append(" " + utostr(_statusCode) + " " + _statusMsg + "\r\n");
 	for (Headers::iterator it = _headers.begin(); it != _headers.end(); it++)
 		ret.append(it->first + ": " + it->second + "\r\n");
 	ret.append("\r\n");
-	fd = open(_body.c_str(), O_RDONLY);
+
 	char buf[2048];
-	long size = atol(_headers["Content-Length"].c_str());
-	while (size > 0)
+	// long size = atol(_headers["Content-Length"].c_str());
+	while (1)
 	{
 		bzero(buf, 2048);
-		size -= read(fd, buf, 2047);
+		if (read(_fd, buf, 2047) == 0)
+			break ;
 		ret.append(buf);
 	}
-	close(fd);
+	close(_fd);
 	return ret;
 }
 
 // Request Methods Handling
-void Response::_handleGetRequest(Location const &loc, size_t port)
+bool Response::_handleGetRequest(Location const &loc, size_t port)
 {
 	struct stat st;
 	int			st_ret;
@@ -90,190 +91,182 @@ void Response::_handleGetRequest(Location const &loc, size_t port)
 	// std::cout << "Error " << errno << std::endl;
 }
 
-void Response::_handlePostRequest(Location const &loc, size_t port)
+bool Response::_handlePostRequest(Location const &loc, size_t port)
 {
 	(void)loc;
 	(void)port;
 	std::cout << "Post Request" << std::endl;
+	return true;
 }
 
-void Response::_handleDeleteRequest(Location const &loc, size_t port)
+bool Response::_handleDeleteRequest(Location const &loc, size_t port)
 {
 	(void)loc;
 	(void)port;
 	std::cout << "Delete Request" << std::endl;
+	return true;
 }
 
 // Request path handling
-void Response::_handleRegFile(std::string fpath, struct stat st)
+bool Response::_handleRegFile(std::string fpath, struct stat st)
 {
 	std::cout << "static file" << std::endl;
-	int fd = open(fpath.c_str(), O_RDONLY);
-	if (fd == -1)
+	_fd = open(fpath.c_str(), O_RDONLY);
+	if (_fd == -1)
 	{
 		return _resGenerate(403);
 	}
-	_resGenerate(200, fd, fpath, st);
-	close(fd);
+	return _resGenerate(200, fpath, st);
 }
 
-void Response::_handleDir(std::string fpath, struct stat st,
+bool Response::_handleDir(std::string fpath, struct stat st,
 	Location const &loc, size_t port)
 {
 	if (fpath[fpath.size() - 1] != '/') // _request path does't end with '/'
 	{
 		return _resGenerate(301, port);
 	}
+	std::string dpath = fpath;
 	fpath += loc.index.size() ? loc.index : "index.html";
 	std::swap(_req.path, fpath);
 	Location cgi_loc = _srv.locs[_getValidLocation(_srv.locs)];
-	if (fpath.substr(fpath.size()-4) == ".php" && cgi_loc.path == ".php")
+	std::swap(_req.path, fpath);
+	if (fpath.size() && fpath.substr(fpath.size()-4) == ".php" && cgi_loc.path == ".php")
 	{
 		return _handleCGI(cgi_loc, fpath, _req.query);
 	}
-	std::swap(_req.path, fpath);
 	std::cout << "static file index" << std::endl;
 	// process regular file
-	int fd = open(fpath.c_str(), O_RDONLY);
-	if (fd == -1)
+	_fd = open(fpath.c_str(), O_RDONLY);
+	if (_fd == -1)
 	{
-		if (loc.autoindex) return ; // list_files(_req.path)
+		if (loc.autoindex) return _fileListing(dpath);
 		return _resGenerate(403);
 	}
-	fstat(fd, &st);
-	_resGenerate(200, fd, fpath, st);
-	close(fd);
+	fstat(_fd, &st);
+	return _resGenerate(200, fpath, st);
 }
 
-void Response::_file_listing()
+bool Response::_fileListing()
 {
+	std::string res;
+
+	res = "<html>\n\
+<head><title>Index of "+_req.path+"</title></head>\n\
+<body>\n\
+<h1>Index of "+_req.path+"</h1><hr><pre><a href=\"../\">../</a>\n";
+
+	return true;
 }
 
-void Response::_handleCGI(Location const &loc, std::string fpath, std::string query)
+bool Response::_handleCGI(Location const &loc, std::string fpath, std::string query)
 {
-	int		pid;
-	// int		fd[2];
 	char	**args;
 
 	(void)loc;
 	std::cout << "CGI handling" << std::endl;
-	// char cgi_path[] = "/usr/bin/php-cgi";
-	char cgi_path[] = "/Users/hrhirha/goinfre/.brew/bin/php-cgi";
+	char cgi_path[] = "/usr/bin/php-cgi";
+	// char cgi_path[] = "/Users/hrhirha/goinfre/.brew/bin/php-cgi";
 	args = getCGIArgs(cgi_path, (char*)fpath.c_str(), (char*)query.c_str());
 
 	struct timeval	tv;
 	gettimeofday(&tv, NULL);
-	std::string file = "tmp/cgi_" + utostr(tv.tv_sec*1e6 + tv.tv_usec) + ".txt";
-	_fd = open(file.c_str(), O_RDWR | O_CREAT, 0644);
+	_body = "tmp/cgi_" + utostr(tv.tv_sec*1e6 + tv.tv_usec) + ".res";
+	_fd = open(_body.c_str(), O_RDWR | O_CREAT, 0644);
 
 	// int out = dup(1);
-	if ((pid = fork()) == -1) return _resGenerate(500);
-	if(!pid)
+	if ((_pid = fork()) == -1) return _resGenerate(500);
+	gettimeofday(&tv, NULL);
+	_timeout = tv.tv_sec;
+	if(!_pid)
 	{
 		dup2(_fd, 1);
 		execve(args[0], args, NULL);
+		_exit(1);
 	}
-	wait(NULL);
-	// close(fd[1]);
 	delete [] args;
-
-	lseek(_fd, 0, SEEK_SET);
-	std::cout << "------------------------------------------\n";
-	char buf[1024];
-	bzero(buf, 1024);
-	read(_fd, buf, 1023);
-	std::cout << "buf: " << buf << std::endl;
-	
-	int sk = lseek(_fd, std::string(buf).find("\r\n\r\n")+4, SEEK_SET);
-	std::cout << "seek: " << sk << ", errno = " << errno << std::endl;
-
-	bzero(buf, 1024);
-	read(_fd, buf, 1023);	
-	std::cout << "buf: " << buf << std::endl;
-	std::cout << "------------------------------------------\n";
-	// return _getCGIRes(fd[0]);
-	// close(fd[0]);
+	close(_fd);
+	_fd = -1;
+	return _waitProc();
 }
 
-void Response::_getCGIRes(int fd)
+bool Response::_waitProc()
 {
-	fd_set			set;
-	struct timeval	tv;
-	std::fstream	fs;
-	size_t			size = 0;
-
-	gettimeofday(&tv, NULL);
-	std::string file = "/tmp/cgi_" + utostr(tv.tv_sec*1e6 + tv.tv_usec) + ".txt";
-	fs.open(file.c_str(), std::ios_base::out | std::ios_base::binary);
-
-	FD_ZERO(&set);
-	FD_SET(fd, &set);
-	while (1)
+	if (_pid > 0)
 	{
-		int rd =_readFromCGI(fd, fs, &set, size);
-		if (rd == -1)
+		struct timeval	tv;
+		int				status = 0;
+		int result = waitpid(_pid, &status, WNOHANG);
+		status = WEXITSTATUS(status);
+		if (result == -1 || (status > 0 && status < 255)) // Error
 		{
-			fs.close();
-			close(fd);
-			remove(file.c_str());
-			_headers.erase("Content-type");
+			remove(_body.c_str());
+			_body.clear();
 			return _resGenerate(500);
 		}
-		if (!rd) break ;
+		if (result == 0) // child still alive
+		{
+			gettimeofday(&tv, NULL);
+			if (tv.tv_sec - _timeout > 60) // timeout
+			{
+				kill(_pid, SIGTERM);
+				wait(NULL);
+				_pid = 0;
+				remove(_body.c_str());
+				_body.clear();
+				return _resGenerate(504);
+			}
+			return false;
+		}
+		_pid = 0;
 	}
-	if (size)
-	{
-		_body = file;
-		_headers["Content-Length"] = utostr(size);
-	}
-	_headers["Date"] = timeToStr(time(NULL));
-	fs.close();
-	close(fd);
-	_body = file;
-	_statusCode = 200;
-	_statusMsg = statusMessage(200);
+	// child has exited
+	return _readFromCGI();
 }
 
-int Response::_readFromCGI(int fd, std::fstream &fs, fd_set *set, size_t &size)
+bool Response::_readFromCGI()
 {
-	char			buf[8];
-	(void)set;
-	// struct timeval	tv;
-	// fd_set			rset;
-	
-	// tv.tv_sec = 0; tv.tv_usec = 1e3;
-	// FD_ZERO(&rset);
-	// rset = *set;
-	// if (select(fd+1, &rset, NULL, NULL, &tv) == -1)
-	// {
-	// 	close(fd);
-	// 	return -1;
-	// }
-	// std::cout << FD_ISSET(fd, &rset) << std::endl;
-	// if (!FD_ISSET(fd, &rset))
-	// 	return 0;
-	bzero(buf, 8);
-	if (!read(fd, buf, 7)) return 0;
-		// std::cout << "DEBUG" << std::endl;
-	_body.append(buf);
-	if (_getCgiHeaders())
+	struct timeval		tv;
+	fd_set				set;
+	char				buf[2048];
+	static std::string	buffer;
+
+	tv.tv_sec = 0; tv.tv_usec = 1e3;
+	_fd = (_fd == -1) ? open(_body.c_str(), O_RDONLY) : _fd;
+	FD_ZERO(&set);
+	FD_SET(_fd, &set);
+	if (select(_fd+1, &set, NULL, NULL, &tv) == -1)
 	{
+		close(_fd);
+		remove(_body.c_str());
+		_body.clear();
+		return _resGenerate(500);
+	}
+	std::cout << FD_ISSET(_fd, &set) << std::endl;
+	if (!FD_ISSET(_fd, &set))
+		return false;
+	bzero(buf, 2048);
+	read(_fd, buf, 2047);
+	buffer.append(buf);
+	if (_getCgiHeaders(buffer))
+	{
+		lseek(_fd, buffer.size()*-1, SEEK_CUR);
 		Headers::iterator it = _headers.find("Status");
 		if (it != _headers.end())
 		{
-			// std::cout << it->second << std::endl;
+			_statusCode = atoi(it->second.c_str());
+			_statusMsg = statusMessage(_statusCode);
 			_headers.erase(it);
-			return -1;
+			return true;
 		}
-		size += _body.size();
-		fs << _body;
-		_body.clear();
+		_statusCode = 200;
+		_statusMsg = statusMessage(200);
+		return true;
 	}
-	// FD_CLR(fd, set);
-	return 1;
+	return false;
 }
 
-bool Response::_getCgiHeaders()
+bool Response::_getCgiHeaders(std::string &buffer)
 {
 	static bool done = false;
 	std::string h("");
@@ -281,12 +274,12 @@ bool Response::_getCgiHeaders()
 
 	if (done) return true;
 
-	i = _body.find("\r\n\r\n");
+	i = buffer.find("\r\n\r\n");
 	if (i == std::string::npos)
 		return false;
 	done = true;
-	h = _body.substr(0, i+2);
-	_body = _body.substr(i+4);
+	h = buffer.substr(0, i+2);
+	buffer = buffer.substr(i+4);
 	i = h.find("\r\n");
 	while (i != std::string::npos)
 	{
@@ -295,30 +288,35 @@ bool Response::_getCgiHeaders()
 		j = sub.find(":");
 		if (j != std::string::npos)
 		{
-			_headers[sub.substr(0, j)] = sub.substr(j+2);
+			std::string ct = sub.substr(0, j);
+			ct = (ct == "Content-type") ? "Content-Type" : ct;
+			_headers[ct] = sub.substr(j+2);
 		}
 		i = h.find("\r\n");
 	}
+	_headers["Date"] = timeToStr(time(NULL));
+	_headers["Transfer-Encoding"] = "chunked";
 	return true;
 }
 
 // Redirection
-void Response::_resRedir(size_t code, size_t port, std::string redir)
+bool Response::_resRedir(size_t code, size_t port, std::string redir)
 {
 	_resGenerate(code);
 	if (redir[0] != '/')
 	{
 		_headers["Location"] = redir;
-		return ;
+		return true;
 	}
 	std::string lh = _req.headers.find("Host")->second;
 	size_t i = lh.find(':');
 	lh = (i == std::string::npos) ? lh : lh.substr(0, i);
 	_headers["Location"] = "http://" + lh + ":" + utostr(port) + redir;
+	return true;
 }
 
 // Response Generation
-void Response::_resGenerate(size_t code)
+bool Response::_resGenerate(size_t code)
 {
 	struct timeval	tv;
 	std::fstream	fs;
@@ -329,25 +327,27 @@ void Response::_resGenerate(size_t code)
 	_statusCode = code;
 	_statusMsg = statusMessage(code);
 	// check if code is in error_page
-	fs << specRes(code);
+	std::string sr = specRes(code);
+	fs << sr;
 	fs.close();
 	_headers["Content-Type"] = "text/html";
-	_headers["Content-Length"] = utostr(_body.size());
+	_headers["Content-Length"] = utostr(sr.size());
 	_headers["Date"] = timeToStr(time(NULL));
+	_fd = open(_body.c_str(), O_RDONLY);
+	return true;
 }
 
-void Response::_resGenerate(size_t code, size_t port)
+bool Response::_resGenerate(size_t code, size_t port)
 {
-	_resGenerate(code);
 	std::string lh = _req.headers.find("Host")->second;
 	size_t i = lh.find(':');
 	lh = (i == std::string::npos) ? lh : lh.substr(0, i);
 	_headers["Location"] = "http://" + lh + ":" + utostr(port) + _req.path + "/";
+	return _resGenerate(code);
 }
 
-void Response::_resGenerate(size_t code, int fd, std::string fpath, struct stat st)
+bool Response::_resGenerate(size_t code, std::string fpath, struct stat st)
 {
-	(void)fd;
 	_statusCode = code;
 	_statusMsg = statusMessage(code);
 	_headers["Content-Length"] = utostr(st.st_size);
@@ -355,14 +355,7 @@ void Response::_resGenerate(size_t code, int fd, std::string fpath, struct stat 
 	_headers["Content-Type"] = mimeType(fpath);
 	_headers["Last-Modified"] = timeToStr(st.st_mtime);
 	_body = fpath;
-	// char buf[1024];
-	// int ret = st.st_size;
-	// while (ret)
-	// {
-	// 	bzero(buf, 1024);
-	// 	ret -= read(fd, buf, 1024);
-	// 	_body.append(buf);
-	// }
+	return true;
 }
 
 // Choosing Server Block and Location to use

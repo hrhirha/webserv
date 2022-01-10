@@ -1,6 +1,5 @@
 #include "Response.hpp"
 
-
 Response::func Response::_req_func(std::string method)
 {
 	static std::map<std::string, func>	rf;
@@ -297,6 +296,17 @@ std::string utostr(size_t n)
 	ss >> str;
 
 	return str;
+}
+
+size_t strtou(std::string s)
+{
+	std::stringstream	ss;
+	size_t				n;
+
+	ss << s;
+	ss >> n;
+
+	return n;
 }
 
 std::string timeToStr(time_t clock)
