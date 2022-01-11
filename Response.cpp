@@ -3,7 +3,8 @@
 std::string Response::_httpVersion = "HTTP/1.1";
 
 Response::Response() : _statusCode(0), _statusMsg(), _headers(), _body(),
-	_req(), _srv(), _pid(-1), _fd(-1)
+	_req(), _srv(), _pid(-1), _fd(-1), _timeout(0),
+	_fs(), _dir(NULL), _dpath()
 {
 	_headers["Server"] = "WebServ/1.0";
 	_headers["Connection"] = "close";
@@ -11,7 +12,8 @@ Response::Response() : _statusCode(0), _statusMsg(), _headers(), _body(),
 
 Response::Response(Response const &res) :
 	_statusCode(res._statusCode), _statusMsg(res._statusMsg), _headers(res._headers),
-	_body(res._body), _req(res._req), _srv(res._srv)
+	_body(res._body), _req(res._req), _srv(res._srv), _pid(res._pid), _fd(res._fd),
+	_timeout(res._timeout), _dir(res._dir), _dpath(res._dpath)
 {}
 
 Response &Response::operator= (Response const &res)
@@ -20,19 +22,30 @@ Response &Response::operator= (Response const &res)
 	_statusMsg = res._statusMsg;
 	_headers = res._headers;
 	_body = res._body;
+	_req = res._req;
+	_srv = res._srv;
+	_pid = res._pid;
+	_fd = res._fd;
+	_timeout = res._timeout;
+	_dir = res._dir;
+	_dpath = res._dpath;
 	return *this;
 }
 
 Response::~Response()
 {
+	_statusMsg.clear();
 	_headers.clear();
-	// remove(_body.c_str());
+	_body.clear();
+	// _req.~Request();
+	// _srv.~ServerCnf();
 }
 
 bool Response::build(Request const &req, std::vector<ServerCnf> const &serv_cnfs,
 	struct sockaddr_in const addr)
 {
 	if (_pid >= 0) return _waitProc();
+	if (_dir) return _readDir();
 	_req = req;
 	_srv = serv_cnfs[_getValidServerCnf(serv_cnfs, addr)];
 	if (_statusCode == 400)
@@ -62,7 +75,7 @@ std::string Response::toString()
 	while (1)
 	{
 		bzero(buf, 2048);
-		if (read(_fd, buf, 2047) == 0)
+		if (read(_fd, buf, 2047) <= 0)
 			break ;
 		ret.append(buf);
 	}
@@ -126,7 +139,7 @@ bool Response::_handleDir(std::string fpath, struct stat st,
 	{
 		return _resGenerate(301, port);
 	}
-	std::string dpath = fpath;
+	_dpath = fpath;
 	fpath += loc.index.size() ? loc.index : "index.html";
 	std::swap(_req.path, fpath);
 	Location cgi_loc = _srv.locs[_getValidLocation(_srv.locs)];
@@ -135,27 +148,64 @@ bool Response::_handleDir(std::string fpath, struct stat st,
 	{
 		return _handleCGI(cgi_loc, fpath, _req.query);
 	}
-	std::cout << "static file index" << std::endl;
 	// process regular file
 	_fd = open(fpath.c_str(), O_RDONLY);
 	if (_fd == -1)
 	{
-		if (loc.autoindex) return _fileListing(dpath);
+		if (loc.autoindex) return _dirListing();
 		return _resGenerate(403);
 	}
 	fstat(_fd, &st);
 	return _resGenerate(200, fpath, st);
 }
 
-bool Response::_fileListing()
+bool Response::_dirListing()
 {
-	std::string res;
+	struct timeval	tv;
 
-	res = "<html>\n\
+	std::cout << "dir listing" << std::endl;
+	gettimeofday(&tv, NULL);
+	_body = "/tmp/dirlist_" + utostr(tv.tv_sec*1e6 + tv.tv_usec) + ".html";
+	_fs.open(_body.c_str(), std::ios_base::out);
+	_fs << "<html>\n\
 <head><title>Index of "+_req.path+"</title></head>\n\
 <body>\n\
 <h1>Index of "+_req.path+"</h1><hr><pre><a href=\"../\">../</a>\n";
+	if (!(_dir = opendir(_dpath.c_str())))
+	{
+		return _resGenerate(500);
+	}
+	return _readDir();
+}
 
+bool Response::_readDir()
+{
+	struct stat		st;
+	struct dirent	*ent;
+	struct timeval	tv;
+	time_t			utm;
+
+	gettimeofday(&tv, NULL);
+	utm = tv.tv_usec;
+	while ((ent = readdir(_dir)))
+	{
+		gettimeofday(&tv, NULL);
+		if (tv.tv_usec - utm >= 1e4)
+			return false;
+		std::string name = ent->d_name;
+		if (name[0] == '.') continue ;
+		stat((_dpath+name).c_str(), &st);
+		_fs << getHyperlinkTag(name, st);
+	}
+	_fs << "</pre><hr></body>\n</html>";
+	closedir(_dir);
+	_fs.close();
+	_fd = open(_body.c_str(), O_RDONLY);
+	_statusCode = 200;
+	_statusMsg = statusMessage(200);
+	_headers["Date"] = timeToStr(time(NULL));
+	_headers["Content-Type"] = "text/html";
+	_headers["Transfer-Encoding"] = "chunked";
 	return true;
 }
 
@@ -171,7 +221,7 @@ bool Response::_handleCGI(Location const &loc, std::string fpath, std::string qu
 
 	struct timeval	tv;
 	gettimeofday(&tv, NULL);
-	_body = "tmp/cgi_" + utostr(tv.tv_sec*1e6 + tv.tv_usec) + ".res";
+	_body = "/tmp/cgi_" + utostr(tv.tv_sec*1e6 + tv.tv_usec) + ".res";
 	_fd = open(_body.c_str(), O_RDWR | O_CREAT, 0644);
 
 	// int out = dup(1);
@@ -228,7 +278,7 @@ bool Response::_readFromCGI()
 {
 	struct timeval		tv;
 	fd_set				set;
-	char				buf[2048];
+	char				buf[10001];
 	static std::string	buffer;
 
 	tv.tv_sec = 0; tv.tv_usec = 1e3;
@@ -240,13 +290,15 @@ bool Response::_readFromCGI()
 		close(_fd);
 		remove(_body.c_str());
 		_body.clear();
+		FD_ZERO(&set);
 		return _resGenerate(500);
 	}
 	std::cout << FD_ISSET(_fd, &set) << std::endl;
 	if (!FD_ISSET(_fd, &set))
 		return false;
-	bzero(buf, 2048);
-	read(_fd, buf, 2047);
+	bzero(buf, 10001);
+	read(_fd, buf, 10000);
+	FD_ZERO(&set);
 	buffer.append(buf);
 	if (_getCgiHeaders(buffer))
 	{
@@ -321,17 +373,17 @@ bool Response::_resGenerate(size_t code)
 	struct timeval	tv;
 	std::fstream	fs;
 
-	gettimeofday(&tv, NULL);
-	_body = "/tmp/" + utostr(code) + "_" + utostr(tv.tv_sec*1e6 + tv.tv_usec) + ".html";
-	fs.open(_body.c_str(), std::ios_base::out | std::ios_base::binary);
 	_statusCode = code;
 	_statusMsg = statusMessage(code);
 	// check if code is in error_page
+	gettimeofday(&tv, NULL);
+	_body = "/tmp/" + utostr(code) + "_" + utostr(tv.tv_sec*1e6 + tv.tv_usec) + ".html";
+	fs.open(_body.c_str(), std::ios_base::out | std::ios_base::binary);
 	std::string sr = specRes(code);
 	fs << sr;
 	fs.close();
 	_headers["Content-Type"] = "text/html";
-	_headers["Content-Length"] = utostr(sr.size());
+	_headers["Content-Length"] = utostr( .size());
 	_headers["Date"] = timeToStr(time(NULL));
 	_fd = open(_body.c_str(), O_RDONLY);
 	return true;

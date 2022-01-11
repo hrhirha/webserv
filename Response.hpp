@@ -1,22 +1,23 @@
 #include <iostream>
 #include <map>
 #include <vector>
-#include <arpa/inet.h>
 #include <sstream>
 #include <algorithm>
-#include <strings.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <unistd.h>
-#include <sys/time.h>
-#include <cstring>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <cstdio>
-#include <sys/select.h>
 #include <fstream>
 #include <limits>
+#include <cstdio>
+#include <cstring>
+#include <strings.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/select.h>
+#include <arpa/inet.h>
 
 typedef std::map<std::string, std::string>	Headers;
 typedef std::vector<std::string>			vs;
@@ -67,9 +68,14 @@ class Response
 		std::string			_body;
 		Request				_req;
 		ServerCnf			_srv;
+		// for cgi
 		int					_pid;
 		int					_fd;
 		time_t				_timeout;
+		// for directory listing
+		std::fstream		_fs;
+		DIR					*_dir;
+		std::string			_dpath;
 
 		size_t	_getValidServerCnf(std::vector<ServerCnf> const &, struct sockaddr_in const);
 		size_t	_getValidLocation(Locations const &);
@@ -80,7 +86,8 @@ class Response
 
 		bool	_handleRegFile(std::string, struct stat);
 		bool	_handleDir(std::string, struct stat, Location const&, size_t);
-		bool	_fileListing(std::string&);
+		bool	_dirListing();
+		bool	_readDir();
 		bool	_handleCGI(Location const&, std::string, std::string);
 
 		bool	_waitProc();
@@ -107,7 +114,9 @@ std::string	specRes(size_t);
 std::string	mimeType(std::string);
 std::string statusMessage(size_t);
 
-std::string utostr(size_t n);
-size_t		strtou(std::string s);
-std::string timeToStr(time_t clock);
+std::string utostr(size_t);
+size_t		strtou(std::string);
+std::string timeToStr(time_t, bool=false);
+std::string	getHyperlinkTag(std::string&, struct stat&);
+
 char		**getCGIArgs(char*, char*, char*);

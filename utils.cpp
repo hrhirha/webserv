@@ -309,15 +309,37 @@ size_t strtou(std::string s)
 	return n;
 }
 
-std::string timeToStr(time_t clock)
+std::string timeToStr(time_t clock, bool lst)
 {
 	struct tm	*tm;
 
 	tm = gmtime(&clock);
-	std::string str = asctime(tm);
+	// std::string str = asctime(tm);
+	if (lst)
+	{
+		char time[18];
+		strftime(time, 18, "%d-%b-%y %H:%M", tm);
+		return std::string(time);
+	}
 	char time[30];
 	strftime(time, 30, "%a, %d %b %y %H:%M:%S GMT", tm);
 	return std::string(time);
+}
+
+std::string getHyperlinkTag(std::string &name, struct stat &st)
+{
+	std::string a;
+	std::string lst_mod = timeToStr(st.st_mtime, true);
+	std::string sz = (S_ISREG(st.st_mode)) ? utostr(st.st_size) : "-";
+
+	a.append("<a href=\""+name+"\">"+(name.size() > 50
+		? name.substr(0, 47)+"..&gt;"
+		: name)+"</a> "+(name.size() <= 50 ? std::string(50 - name.size(), ' ') : ""));
+	a.append(lst_mod);
+	a.append(20-sz.size(), ' ');
+	a.append(sz);
+	a.append("\n");
+	return a;
 }
 
 char **getCGIArgs(char*cgi_path, char*fpath, char*query)
