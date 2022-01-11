@@ -63,7 +63,7 @@ int main()
 
 	// Request
 	hs.insert(std::make_pair("Host", "localhost"));
-	Request req = {"GET", "/index.html", "name=Hamza&password=pass!!", "HTTP/1.1", hs, ""};
+	Request req = {"GET", "/dir0/dir00", "name=Hamza&password=pass!!", "HTTP/1.1", hs, ""};
 
 	bzero(&addr, sizeof(addr));
 	addr.sin_family = AF_INET;

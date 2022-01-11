@@ -383,7 +383,7 @@ bool Response::_resGenerate(size_t code)
 	fs << sr;
 	fs.close();
 	_headers["Content-Type"] = "text/html";
-	_headers["Content-Length"] = utostr( .size());
+	_headers["Content-Length"] = utostr(sr.size());
 	_headers["Date"] = timeToStr(time(NULL));
 	_fd = open(_body.c_str(), O_RDONLY);
 	return true;
