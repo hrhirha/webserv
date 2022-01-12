@@ -318,7 +318,7 @@ std::string timeToStr(time_t clock, bool lst)
 	if (lst)
 	{
 		char time[18];
-		strftime(time, 18, "%d-%b-%y %H:%M", tm);
+		strftime(time, 18, "%d-%b-%Y %H:%M", tm);
 		return std::string(time);
 	}
 	char time[30];

@@ -36,7 +36,7 @@ int main()
 	struct sockaddr_in		addr;
 
 	// server 0
-	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "", "", false));
+	ls.push_back(newLocation("/", vs(), std::make_pair(444,"google.com"), "", "", false));
 	sns.push_back("");
 	srvs.push_back(newServer("127.0.0.1", 8000, sns, ls));
 	//////////
@@ -44,10 +44,10 @@ int main()
 	hs.clear();
 	sns.clear();
 	// server 1
-	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/mnt/c/Users/pc/Desktop/webserv/www", "index.php", false));
+	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/mnt/c/Users/pc/Desktop/webserv/www", "index.html", true));
 	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), "/mnt/c/Users/pc/Desktop/webserv/www", "", true));
-	ls.push_back(newLocation("/dir0/dir00/", vs(), std::make_pair(0,""), "/mnt/c/Users/pc/Desktop/webserv/www", "", true));
-	ls.push_back(newLocation(".php", vs(), std::make_pair(0,""), "/mnt/c/Users/pc/Desktop/webserv/www", "", false));
+	ls.push_back(newLocation("/dir0/dir00/", vs(), std::make_pair(307,"https://google.com"), "/mnt/c/Users/pc/Desktop/webserv/www", "index.php", false));
+	ls.push_back(newLocation("index.php", vs(), std::make_pair(0,""), "/mnt/c/Users/pc/Desktop/webserv/www", "", false));
 	sns.push_back("localhost");
 	srvs.push_back(newServer("127.0.0.1", 8000, sns, ls));
 	//////////
@@ -55,7 +55,7 @@ int main()
 	hs.clear();
 	sns.clear();
 	// server 2
-	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/mnt/c/Users/pc/Desktop/webserv/www/dir1", "index.html", false));
+	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/mnt/c/Users/pc/Desktop/webserv/www/dir1", "f10", false));
 	sns.push_back("test.com");
 	sns.push_back("test.net");
 	srvs.push_back(newServer("127.0.0.1", 8000, sns, ls));
@@ -63,7 +63,7 @@ int main()
 
 	// Request
 	hs.insert(std::make_pair("Host", "localhost"));
-	Request req = {"GET", "/dir0/dir00", "name=Hamza&password=pass!!", "HTTP/1.1", hs, ""};
+	Request req = {"GET", "/index.php", "name=Hamza&password=pass!!", "HTTP/1.1", hs, ""};
 
 	bzero(&addr, sizeof(addr));
 	addr.sin_family = AF_INET;
@@ -112,8 +112,8 @@ int main()
 	std::cout << tm.tm_hour << ":" << tm.tm_min << ":" << tm.tm_sec << " - " << tm.tm_mday << "/" << tm.tm_mon+1 << "/" << 1900+tm.tm_year << std::endl;
 	std::cout << asctime(&tm) << std::endl;
 */
-	while (1)
-	{
-		usleep(10);
-	}
+	// while (1)
+	// {
+	// 	usleep(10);
+	// }
 }

@@ -63,6 +63,7 @@ bool Response::build(Request const &req, std::vector<ServerCnf> const &serv_cnfs
 
 std::string Response::toString()
 {
+	if (_statusCode == 444) return "";
 	std::string ret = Response::_httpVersion;
 
 	ret.append(" " + utostr(_statusCode) + " " + _statusMsg + "\r\n");
@@ -91,7 +92,8 @@ bool Response::_handleGetRequest(Location const &loc, size_t port)
 
 	std::string fpath = loc.root + _req.path;
 	std::cout << "fpath: " << fpath << std::endl;
-	if (loc.path == ".php") // Handle CGI
+	std::cout << "lpath = " << loc.path << std::endl;
+	if (loc.path.size() >= 4 && loc.path.substr(loc.path.size()-4) == ".php") // Handle CGI
 		return _handleCGI(loc, fpath, _req.query);
 	st_ret = stat(fpath.c_str(), &st);
 	if (!st_ret && S_ISREG(st.st_mode)) // Handle regular file
@@ -246,6 +248,7 @@ bool Response::_waitProc()
 	{
 		struct timeval	tv;
 		int				status = 0;
+		usleep(1e4);
 		int result = waitpid(_pid, &status, WNOHANG);
 		status = WEXITSTATUS(status);
 		if (result == -1 || (status > 0 && status < 255)) // Error
@@ -400,12 +403,16 @@ bool Response::_resGenerate(size_t code, size_t port)
 
 bool Response::_resGenerate(size_t code, std::string fpath, struct stat st)
 {
+	std::stringstream ss;
+
 	_statusCode = code;
 	_statusMsg = statusMessage(code);
 	_headers["Content-Length"] = utostr(st.st_size);
 	_headers["Date"] = timeToStr(time(NULL));
 	_headers["Content-Type"] = mimeType(fpath);
 	_headers["Last-Modified"] = timeToStr(st.st_mtime);
+	ss << "\"" << std::hex << st.st_mtime << "-" << std::hex << st.st_size << "\"";
+	ss >> _headers["ETag"];
 	_body = fpath;
 	return true;
 }
@@ -463,9 +470,12 @@ size_t Response::_getValidLocation(Locations const &locs)
 	std::string path = _req.path.substr(0, j + 1);
 	for (size_t i = 0; i < locs.size(); i++)
 	{
-		if (_req.path.size() > 4 && _req.path.substr(_req.path.size() - 4) == ".php" && locs[i].path == ".php")
+		std::string rext = _req.path.size() >= 4 ? _req.path.substr(_req.path.size() - 4) : "";
+		std::string lpath = locs[i].path;
+		if ((rext == lpath && lpath == ".php") || _req.path == lpath)
 			return i;
-		if (path.size() >= locs[i].path.size() && locs[i].path == path.substr(0, locs[i].path.size()) && (loc_idx == -1 || locs[i].path.size() > locs[loc_idx].path.size()))
+		if (path.size() >= locs[i].path.size() && locs[i].path == path.substr(0, locs[i].path.size())
+			&& (loc_idx == -1 || locs[i].path.size() > locs[loc_idx].path.size()))
 		{
 			loc_idx = i;
 		}
