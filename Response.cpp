@@ -72,7 +72,6 @@ std::string Response::toString()
 	ret.append("\r\n");
 
 	char buf[2048];
-	// long size = atol(_headers["Content-Length"].c_str());
 	while (1)
 	{
 		bzero(buf, 2048);
@@ -91,8 +90,6 @@ bool Response::_handleGetRequest(Location const &loc, size_t port)
 	int			st_ret;
 
 	std::string fpath = loc.root + _req.path;
-	std::cout << "fpath: " << fpath << std::endl;
-	std::cout << "lpath = " << loc.path << std::endl;
 	if (loc.path.size() >= 4 && loc.path.substr(loc.path.size()-4) == ".php") // Handle CGI
 		return _handleCGI(loc, fpath, _req.query);
 	st_ret = stat(fpath.c_str(), &st);
@@ -213,7 +210,8 @@ bool Response::_readDir()
 
 bool Response::_handleCGI(Location const &loc, std::string fpath, std::string query)
 {
-	char	**args;
+	struct timeval	tv;
+	char			**args;
 
 	(void)loc;
 	std::cout << "CGI handling" << std::endl;
@@ -221,12 +219,9 @@ bool Response::_handleCGI(Location const &loc, std::string fpath, std::string qu
 	// char cgi_path[] = "/Users/hrhirha/goinfre/.brew/bin/php-cgi";
 	args = getCGIArgs(cgi_path, (char*)fpath.c_str(), (char*)query.c_str());
 
-	struct timeval	tv;
 	gettimeofday(&tv, NULL);
 	_body = "/tmp/cgi_" + utostr(tv.tv_sec*1e6 + tv.tv_usec) + ".res";
 	_fd = open(_body.c_str(), O_RDWR | O_CREAT, 0644);
-
-	// int out = dup(1);
 	if ((_pid = fork()) == -1) return _resGenerate(500);
 	gettimeofday(&tv, NULL);
 	_timeout = tv.tv_sec;
