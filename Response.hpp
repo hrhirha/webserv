@@ -57,7 +57,7 @@ struct ServerCnf
 
 class Response
 {
-	typedef bool (Response::*func)(Location const&, size_t);
+	typedef bool (Response::*func)(size_t);
 	func		_req_func(std::string);
 	
 	private:
@@ -68,6 +68,7 @@ class Response
 		std::string			_body;
 		Request				_req;
 		ServerCnf			_srv;
+		Location			_loc;
 		// for cgi
 		int					_pid;
 		int					_fd;
@@ -80,15 +81,16 @@ class Response
 		size_t	_getValidServerCnf(std::vector<ServerCnf> const &, struct sockaddr_in const);
 		size_t	_getValidLocation(Locations const &);
 		
-		bool	_handleGetRequest(Location const &, size_t);
-		bool	_handlePostRequest(Location const &, size_t);
-		bool	_handleDeleteRequest(Location const &, size_t);
+		bool	_handleGetRequest(size_t);
+		bool	_handlePostRequest(size_t);
+		bool	_handleDeleteRequest(size_t);
 
 		bool	_handleRegFile(std::string, struct stat);
-		bool	_handleDir(std::string, struct stat, Location const&, size_t);
+		bool	_handleDir(std::string, struct stat, size_t);
+		void	_internalRedir(std::string &);
 		bool	_dirListing();
 		bool	_readDir();
-		bool	_handleCGI(Location const&, std::string, std::string);
+		bool	_handleCGI(std::string, std::string);
 
 		bool	_waitProc();
 		bool	_readFromCGI();
@@ -107,6 +109,7 @@ class Response
 		~Response();
 
 		bool build(Request const &, std::vector<ServerCnf> const &, struct sockaddr_in const);
+		bool build();
 		std::string toString();
 };
 

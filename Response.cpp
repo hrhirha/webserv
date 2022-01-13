@@ -2,8 +2,10 @@
 
 std::string Response::_httpVersion = "HTTP/1.1";
 
-Response::Response() : _statusCode(0), _statusMsg(), _headers(), _body(),
-	_req(), _srv(), _pid(-1), _fd(-1), _timeout(0),
+Response::Response() :
+	_statusCode(0), _statusMsg(), _headers(), _body(),
+	_req(), _srv(), _loc(),
+	_pid(-1), _fd(-1), _timeout(0),
 	_fs(), _dir(NULL), _dpath()
 {
 	_headers["Server"] = "WebServ/1.0";
@@ -12,8 +14,10 @@ Response::Response() : _statusCode(0), _statusMsg(), _headers(), _body(),
 
 Response::Response(Response const &res) :
 	_statusCode(res._statusCode), _statusMsg(res._statusMsg), _headers(res._headers),
-	_body(res._body), _req(res._req), _srv(res._srv), _pid(res._pid), _fd(res._fd),
-	_timeout(res._timeout), _dir(res._dir), _dpath(res._dpath)
+	_body(res._body),
+	_req(res._req), _srv(res._srv), _loc(res._loc),
+	_pid(res._pid), _fd(res._fd), _timeout(res._timeout),
+	_fs(), _dir(res._dir), _dpath(res._dpath)
 {}
 
 Response &Response::operator= (Response const &res)
@@ -22,13 +26,18 @@ Response &Response::operator= (Response const &res)
 	_statusMsg = res._statusMsg;
 	_headers = res._headers;
 	_body = res._body;
+
 	_req = res._req;
 	_srv = res._srv;
+	_loc = res._loc;
+
 	_pid = res._pid;
 	_fd = res._fd;
+
 	_timeout = res._timeout;
 	_dir = res._dir;
 	_dpath = res._dpath;
+
 	return *this;
 }
 
@@ -44,21 +53,27 @@ Response::~Response()
 bool Response::build(Request const &req, std::vector<ServerCnf> const &serv_cnfs,
 	struct sockaddr_in const addr)
 {
+
 	if (_pid >= 0) return _waitProc();
 	if (_dir) return _readDir();
 	_req = req;
 	_srv = serv_cnfs[_getValidServerCnf(serv_cnfs, addr)];
+	_loc = _srv.locs[_getValidLocation(_srv.locs)];
+	return build();
+}
+
+bool Response::build()
+{
 	if (_statusCode == 400)
 		return _resGenerate(400);
-	Location loc = _srv.locs[_getValidLocation(_srv.locs)];
 
-	vs::iterator first = loc.accepted_methods.begin();
-	vs::iterator last = loc.accepted_methods.end();
-	if (loc.accepted_methods.size() && std::find(first, last, _req.method) == last)
+	vs::iterator first = _loc.accepted_methods.begin();
+	vs::iterator last = _loc.accepted_methods.end();
+	if (_loc.accepted_methods.size() && std::find(first, last, _req.method) == last)
 		return _resGenerate(405);
-	if (loc.redirect.first)
-		return _resRedir(loc.redirect.first, _srv.port, loc.redirect.second);
-	return (this->*(_req_func(_req.method)))(loc, _srv.port);
+	if (_loc.redirect.first)
+		return _resRedir(_loc.redirect.first, _srv.port, _loc.redirect.second);
+	return (this->*(_req_func(_req.method)))(_srv.port);
 }
 
 std::string Response::toString()
@@ -84,36 +99,34 @@ std::string Response::toString()
 }
 
 // Request Methods Handling
-bool Response::_handleGetRequest(Location const &loc, size_t port)
+bool Response::_handleGetRequest(size_t port)
 {
 	struct stat st;
 	int			st_ret;
 
-	std::string fpath = loc.root + _req.path;
-	if (loc.path.size() >= 4 && loc.path.substr(loc.path.size()-4) == ".php") // Handle CGI
-		return _handleCGI(loc, fpath, _req.query);
+	std::string fpath = _loc.root + _req.path;
+	if (_loc.path.size() >= 4 && _loc.path.substr(_loc.path.size()-4) == ".php") // Handle CGI
+		return _handleCGI(fpath, _req.query);
 	st_ret = stat(fpath.c_str(), &st);
 	if (!st_ret && S_ISREG(st.st_mode)) // Handle regular file
 		return _handleRegFile(fpath, st);
 	if (!st_ret /*&& S_ISDIR(st.st_mode)*/) // Handle directory
-		return _handleDir(fpath, st, loc, port);
+		return _handleDir(fpath, st, port);
 	if (errno == ENOENT || errno == ENOTDIR)
 		return _resGenerate(404);
 	return _resGenerate(403); // if (errno == EACCES)
 	// std::cout << "Error " << errno << std::endl;
 }
 
-bool Response::_handlePostRequest(Location const &loc, size_t port)
+bool Response::_handlePostRequest(size_t port)
 {
-	(void)loc;
 	(void)port;
 	std::cout << "Post Request" << std::endl;
 	return true;
 }
 
-bool Response::_handleDeleteRequest(Location const &loc, size_t port)
+bool Response::_handleDeleteRequest(size_t port)
 {
-	(void)loc;
 	(void)port;
 	std::cout << "Delete Request" << std::endl;
 	return true;
@@ -131,31 +144,54 @@ bool Response::_handleRegFile(std::string fpath, struct stat st)
 	return _resGenerate(200, fpath, st);
 }
 
-bool Response::_handleDir(std::string fpath, struct stat st,
-	Location const &loc, size_t port)
+bool Response::_handleDir(std::string fpath, struct stat st, size_t port)
 {
 	if (fpath[fpath.size() - 1] != '/') // _request path does't end with '/'
 	{
 		return _resGenerate(301, port);
 	}
-	_dpath = fpath;
-	fpath += loc.index.size() ? loc.index : "index.html";
-	std::swap(_req.path, fpath);
-	Location cgi_loc = _srv.locs[_getValidLocation(_srv.locs)];
-	std::swap(_req.path, fpath);
-	if (fpath.size() && fpath.substr(fpath.size()-4) == ".php" && cgi_loc.path == ".php")
+	_internalRedir(fpath); // if there is more appropraite location
+	_dpath = fpath.substr(0, fpath.find_last_of("/")+1);
+
+	vs::iterator first = _loc.accepted_methods.begin();
+	vs::iterator last = _loc.accepted_methods.end();
+	if (_loc.accepted_methods.size() && std::find(first, last, _req.method) == last)
+		return _resGenerate(405);
+	if (_loc.redirect.first)
+		return _resRedir(_loc.redirect.first, _srv.port, _loc.redirect.second);
+
+	if (_loc.path.size() >= 4 && _loc.path.substr(_loc.path.size()-4) == ".php")
 	{
-		return _handleCGI(cgi_loc, fpath, _req.query);
+		return _handleCGI(fpath, _req.query);
 	}
 	// process regular file
+	bzero(&st, sizeof(struct stat));
+	if (!stat(fpath.c_str(), &st) && S_ISDIR(st.st_mode) && _loc.autoindex)
+		return _dirListing();
 	_fd = open(fpath.c_str(), O_RDONLY);
 	if (_fd == -1)
 	{
-		if (loc.autoindex) return _dirListing();
+		if (_loc.autoindex && errno == ENOENT) return _dirListing();
 		return _resGenerate(403);
 	}
-	fstat(_fd, &st);
 	return _resGenerate(200, fpath, st);
+}
+
+void Response::_internalRedir(std::string &fpath)
+{
+	std::string new_rpath;
+	
+	size_t idx = _loc.index.find_first_not_of("/");
+	std::cout << "idx = " << _loc.index << "\n";
+	new_rpath = _req.path + _loc.index.substr(idx!=std::string::npos?idx:0);//(_loc.index.size() ? _loc.index : "index.html");
+	std::cout << new_rpath << "\n";
+	std::swap(_req.path, new_rpath);
+	Location nloc = _srv.locs[_getValidLocation(_srv.locs)];
+	// std::swap(_req.path, new_rpath);
+	fpath += _loc.index.size() ? _loc.index : "index.html";
+	if (_loc.path != nloc.path)
+		fpath = nloc.root + _req.path + (_req.path[_req.path.size()-1] == '/' ? (nloc.index.size() ? nloc.index : "index.html") : "");
+	_loc = nloc;
 }
 
 bool Response::_dirListing()
@@ -208,14 +244,14 @@ bool Response::_readDir()
 	return true;
 }
 
-bool Response::_handleCGI(Location const &loc, std::string fpath, std::string query)
+bool Response::_handleCGI(std::string fpath, std::string query)
 {
 	struct timeval	tv;
 	char			**args;
 
-	(void)loc;
 	std::cout << "CGI handling" << std::endl;
 	char cgi_path[] = "/usr/bin/php-cgi";
+	// char cgi_path = _loc.cgi.c_str();
 	// char cgi_path[] = "/Users/hrhirha/goinfre/.brew/bin/php-cgi";
 	args = getCGIArgs(cgi_path, (char*)fpath.c_str(), (char*)query.c_str());
 
@@ -465,9 +501,11 @@ size_t Response::_getValidLocation(Locations const &locs)
 	std::string path = _req.path.substr(0, j + 1);
 	for (size_t i = 0; i < locs.size(); i++)
 	{
-		std::string rext = _req.path.size() >= 4 ? _req.path.substr(_req.path.size() - 4) : "";
+		std::string fname = _req.path.substr(j+1);
+		size_t dot = fname.find_last_of(".");
+		std::string rext = (dot != std::string::npos) ? fname.substr(dot) : "";
 		std::string lpath = locs[i].path;
-		if ((rext == lpath && lpath == ".php") || _req.path == lpath)
+		if ((rext == lpath) || _req.path == lpath)
 			return i;
 		if (path.size() >= locs[i].path.size() && locs[i].path == path.substr(0, locs[i].path.size())
 			&& (loc_idx == -1 || locs[i].path.size() > locs[loc_idx].path.size()))
