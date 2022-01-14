@@ -66,13 +66,7 @@ bool Response::build()
 {
 	if (_statusCode == 400)
 		return _resGenerate(400);
-
-	vs::iterator first = _loc.accepted_methods.begin();
-	vs::iterator last = _loc.accepted_methods.end();
-	if (_loc.accepted_methods.size() && std::find(first, last, _req.method) == last)
-		return _resGenerate(405);
-	if (_loc.redirect.first)
-		return _resRedir(_loc.redirect.first, _srv.port, _loc.redirect.second);
+	if (_checkLoc()) return true;
 	return (this->*(_req_func(_req.method)))(_srv.port);
 }
 
@@ -105,7 +99,7 @@ bool Response::_handleGetRequest(size_t port)
 	int			st_ret;
 
 	std::string fpath = _loc.root + _req.path;
-	if (_loc.path.size() >= 4 && _loc.path.substr(_loc.path.size()-4) == ".php") // Handle CGI
+	if (_isCGI(_loc.path)) // Handle CGI
 		return _handleCGI(fpath, _req.query);
 	st_ret = stat(fpath.c_str(), &st);
 	if (!st_ret && S_ISREG(st.st_mode)) // Handle regular file
@@ -115,7 +109,6 @@ bool Response::_handleGetRequest(size_t port)
 	if (errno == ENOENT || errno == ENOTDIR)
 		return _resGenerate(404);
 	return _resGenerate(403); // if (errno == EACCES)
-	// std::cout << "Error " << errno << std::endl;
 }
 
 bool Response::_handlePostRequest(size_t port)
@@ -132,7 +125,7 @@ bool Response::_handleDeleteRequest(size_t port)
 	return true;
 }
 
-// Request path handling
+// Static file
 bool Response::_handleRegFile(std::string fpath, struct stat st)
 {
 	std::cout << "static file" << std::endl;
@@ -144,23 +137,17 @@ bool Response::_handleRegFile(std::string fpath, struct stat st)
 	return _resGenerate(200, fpath, st);
 }
 
+// Directory
 bool Response::_handleDir(std::string fpath, struct stat st, size_t port)
 {
+	std::cout << "directory" << std::endl;
 	if (fpath[fpath.size() - 1] != '/') // _request path does't end with '/'
 	{
 		return _resGenerate(301, port);
 	}
 	_internalRedir(fpath); // if there is more appropraite location
-	_dpath = fpath.substr(0, fpath.find_last_of("/")+1);
-
-	vs::iterator first = _loc.accepted_methods.begin();
-	vs::iterator last = _loc.accepted_methods.end();
-	if (_loc.accepted_methods.size() && std::find(first, last, _req.method) == last)
-		return _resGenerate(405);
-	if (_loc.redirect.first)
-		return _resRedir(_loc.redirect.first, _srv.port, _loc.redirect.second);
-
-	if (_loc.path.size() >= 4 && _loc.path.substr(_loc.path.size()-4) == ".php")
+	if (_checkLoc()) return true;
+	if (_isCGI(_loc.path))
 	{
 		return _handleCGI(fpath, _req.query);
 	}
@@ -192,6 +179,7 @@ void Response::_internalRedir(std::string &fpath)
 	if (_loc.path != nloc.path)
 		fpath = nloc.root + _req.path + (_req.path[_req.path.size()-1] == '/' ? (nloc.index.size() ? nloc.index : "index.html") : "");
 	_loc = nloc;
+	_dpath = fpath.substr(0, fpath.find_last_of("/")+1);
 }
 
 bool Response::_dirListing()
@@ -244,6 +232,7 @@ bool Response::_readDir()
 	return true;
 }
 
+// CGI
 bool Response::_handleCGI(std::string fpath, std::string query)
 {
 	struct timeval	tv;
@@ -385,6 +374,15 @@ bool Response::_getCgiHeaders(std::string &buffer)
 	return true;
 }
 
+bool Response::_isCGI(std::string const &path)
+{
+	size_t dot = path.find_last_of('.');
+	std::string ext = dot != std::string::npos ? path.substr(dot) : "";
+	if (ext == ".php")
+		return true;
+	return false;
+}
+
 // Redirection
 bool Response::_resRedir(size_t code, size_t port, std::string redir)
 {
@@ -514,4 +512,15 @@ size_t Response::_getValidLocation(Locations const &locs)
 		}
 	}
 	return loc_idx;
+}
+
+bool Response::_checkLoc()
+{
+	vs::iterator first = _loc.accepted_methods.begin();
+	vs::iterator last = _loc.accepted_methods.end();
+	if (_loc.accepted_methods.size() && std::find(first, last, _req.method) == last)
+		return _resGenerate(405);
+	if (_loc.redirect.first)
+		return _resRedir(_loc.redirect.first, _srv.port, _loc.redirect.second);
+	return false;
 }

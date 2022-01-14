@@ -35,6 +35,14 @@ std::string	specRes(size_t n)
 </body>\r\n\
 </html>";
 
+	sr[307]= "<html>\r\n\
+<head><title>307 Temporary Redirect</title></head>\r\n\
+<body>\r\n\
+<center><h1>307 Temporary Redirect</h1></center>\r\n\
+<hr><center>webserv/1.0</center>\r\n\
+</body>\r\n\
+</html>";
+
 	sr[400] = "<html>\r\n\
 <head><title>400 Bad Request</title></head>\r\n\
 <body>\r\n\
