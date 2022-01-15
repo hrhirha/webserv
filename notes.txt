@@ -49,3 +49,19 @@ redirection:
 	300, 305 => body = redir.location; no Location header
 	304 => no body; no Location header
 	301, 302, 303, 307, 308 => set Location header, costum body
+
+---------------------------------------------------------------------
+POST request:
+	Content-Type: x-www-urlencoded (key1=value1&key2=value2..)
+	Content-Type: multipart/form-data; boundary=boundary
+	(
+		--boundary
+		Content-Disposition: form-data; name="key1"
+
+		value1
+		--boundary
+		Content-Disposition: form-data; name="key2"
+
+		value2
+		--boundary--
+	)

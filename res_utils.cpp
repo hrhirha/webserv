@@ -25,7 +25,7 @@ std::string	specRes(size_t n)
 <center><h1>301 Moved Permanently</h1></center>\r\n\
 <hr><center>webserv/1.0</center>\r\n\
 </body>\r\n\
-</html>";
+</html>\r\n";
 
 	sr[302]= "<html>\r\n\
 <head><title>302 Found</title></head>\r\n\
@@ -33,7 +33,7 @@ std::string	specRes(size_t n)
 <center><h1>302 Found</h1></center>\r\n\
 <hr><center>webserv/1.0</center>\r\n\
 </body>\r\n\
-</html>";
+</html>\r\n";
 
 	sr[307]= "<html>\r\n\
 <head><title>307 Temporary Redirect</title></head>\r\n\
@@ -41,7 +41,7 @@ std::string	specRes(size_t n)
 <center><h1>307 Temporary Redirect</h1></center>\r\n\
 <hr><center>webserv/1.0</center>\r\n\
 </body>\r\n\
-</html>";
+</html>\r\n";
 
 	sr[400] = "<html>\r\n\
 <head><title>400 Bad Request</title></head>\r\n\
@@ -49,7 +49,7 @@ std::string	specRes(size_t n)
 <center><h1>400 Bad Request</h1></center>\r\n\
 <hr><center>webserv/1.0</center>\r\n\
 </body>\r\n\
-</html>";
+</html>\r\n";
 
 	sr[403] = "<html>\r\n\
 <head><title>403 Forbidden</title></head>\r\n\
@@ -57,7 +57,7 @@ std::string	specRes(size_t n)
 <center><h1>403 Forbidden</h1></center>\r\n\
 <hr><center>webserv/1.0</center>\r\n\
 </body>\r\n\
-</html>";
+</html>\r\n";
 
 	sr[404] = "<html>\r\n\
 <head><title>404 Not Found</title></head>\r\n\
@@ -65,7 +65,7 @@ std::string	specRes(size_t n)
 <center><h1>404 Not Found</h1></center>\r\n\
 <hr><center>webserv/1.0</center>\r\n\
 </body>\r\n\
-</html>";
+</html>\r\n";
 
 	sr[405] = "<html>\r\n\
 <head><title>405 Method Not Allowed</title></head>\r\n\
@@ -73,7 +73,7 @@ std::string	specRes(size_t n)
 <center><h1>405 Method Not Allowed</h1></center>\r\n\
 <hr><center>webserv/1.0</center>\r\n\
 </body>\r\n\
-</html>";
+</html>\r\n";
 
 	sr[500] = "<html>\r\n\
 <head><title>500 Internal Server Error</title></head>\r\n\
@@ -81,7 +81,7 @@ std::string	specRes(size_t n)
 <center><h1>500 Internal Server Error</h1></center>\r\n\
 <hr><center>webserv/1.0</center>\r\n\
 </body>\r\n\
-</html>";
+</html>\r\n";
 
 	return sr[n];
 }

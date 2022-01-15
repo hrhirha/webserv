@@ -9,6 +9,7 @@
 # include <limits>
 # include <cstdio>
 # include <cstring>
+# include <climits>
 # include <strings.h>
 # include <fcntl.h>
 # include <errno.h>
@@ -79,6 +80,9 @@ class Response
 		std::fstream		_fs;
 		DIR					*_dir;
 		std::string			_dpath;
+		// Response is ready
+		bool				_ready;
+		bool				_done;
 
 	public:
 		Response();
@@ -86,11 +90,15 @@ class Response
 		Response &operator= (Response const &);
 		~Response();
 
-		bool build(Request const &, std::vector<ServerCnf> const &, struct sockaddr_in const);
-		bool build();
-		std::string toString();
+		bool		build(Request const &, std::vector<ServerCnf> const &, struct sockaddr_in const);
+		bool		build(size_t=0);
+		std::string get();
+		bool		done();
 
 	private:
+		std::string	_readResBody(std::string &);
+		bool		_isChunked();
+
 		bool	_handleGetRequest(size_t);
 		bool	_handlePostRequest(size_t);
 		bool	_handleDeleteRequest(size_t);

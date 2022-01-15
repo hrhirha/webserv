@@ -44,7 +44,7 @@ int main()
 	hs.clear();
 	sns.clear();
 	// server 1
-	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "var.php", true));
+	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "index.html", true));
 	// ls.push_back(newLocation("/dir0/index.html", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", false));
 	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", true));
 	ls.push_back(newLocation("/dir0/dir00/", vs(), std::make_pair(307,"https://google.com"), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "index.html", false));
@@ -64,7 +64,7 @@ int main()
 
 	// Request
 	hs.insert(std::make_pair("Host", "localhost"));
-	Request req = {"GET", "/", "name=Hamza&password=pass!!", "HTTP/1.1", hs, ""};
+	Request req = {"GET", "/", "name=hamza&password=pass!!@word&", "HTTP/1.1", hs, ""};
 
 	bzero(&addr, sizeof(addr));
 	addr.sin_family = AF_INET;
@@ -72,12 +72,16 @@ int main()
 	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	//////////
 
-	while (!res.build(req, srvs, addr))
-	{
-		std::cout << "please wait..." << std::endl;
-	}
 	std::cout << "--------------------------------------------------------------\n";
-	std::cout << res.toString() << std::endl;
+	while (1)
+	{
+		if (res.build(req, srvs, addr))
+		{
+			std::cout << res.get();
+		}
+		if (res.done()) break ;
+		usleep(1e3);
+	}
 	std::cout << "--------------------------------------------------------------\n";
 
 /*

@@ -6,7 +6,8 @@ Response::Response() :
 	_statusCode(0), _statusMsg(), _headers(), _body(),
 	_req(), _srv(), _loc(),
 	_pid(-1), _fd(-1), _timeout(0),
-	_fs(), _dir(NULL), _dpath()
+	_fs(), _dir(NULL), _dpath(),
+	_ready(false), _done(false)
 {
 	_headers["Server"] = "WebServ/1.0";
 	_headers["Connection"] = "close";
@@ -17,7 +18,8 @@ Response::Response(Response const &res) :
 	_body(res._body),
 	_req(res._req), _srv(res._srv), _loc(res._loc),
 	_pid(res._pid), _fd(res._fd), _timeout(res._timeout),
-	_fs(), _dir(res._dir), _dpath(res._dpath)
+	_fs(), _dir(res._dir), _dpath(res._dpath),
+	_ready(res._ready), _done(res._done)
 {}
 
 Response &Response::operator= (Response const &res)
@@ -38,6 +40,9 @@ Response &Response::operator= (Response const &res)
 	_dir = res._dir;
 	_dpath = res._dpath;
 
+	_ready = res._ready;
+	_done = res._done;
+
 	return *this;
 }
 
@@ -53,43 +58,86 @@ Response::~Response()
 bool Response::build(Request const &req, std::vector<ServerCnf> const &serv_cnfs,
 	struct sockaddr_in const addr)
 {
-
+	if (_ready) return true;
 	if (_pid >= 0) return _waitProc();
 	if (_dir) return _readDir();
 	_req = req;
 	_srv = serv_cnfs[_getValidServerCnf(serv_cnfs, addr)];
 	_loc = _srv.locs[_getValidLocation(_srv.locs)];
-	return build();
+	return build(_statusCode);
 }
 
-bool Response::build()
+bool Response::build(size_t code)
 {
-	if (_statusCode == 400)
-		return _resGenerate(400);
+	if (code != 0)
+		return _resGenerate(code);
 	if (_checkLoc()) return true;
 	return (this->*(_req_func(_req.method)))(_srv.port);
 }
 
-std::string Response::toString()
+std::string Response::get()
 {
-	if (_statusCode == 444) return "";
-	std::string ret = Response::_httpVersion;
+	std::string	ret("");
+	static bool	first_call = true;
 
+	if (!first_call)
+		return _readResBody(ret);
+
+	if (_statusCode == 444)
+	{
+		_done = true;
+		close(_fd);
+		return "";
+	}
+	ret = Response::_httpVersion;
 	ret.append(" " + utostr(_statusCode) + " " + _statusMsg + "\r\n");
 	for (Headers::iterator it = _headers.begin(); it != _headers.end(); it++)
 		ret.append(it->first + ": " + it->second + "\r\n");
 	ret.append("\r\n");
+	first_call = false;
+	return _readResBody(ret);
+}
 
-	char buf[2048];
-	while (1)
+bool Response::done()
+{
+	return _done;
+}
+
+std::string Response::_readResBody(std::string &ret)
+{
+	char				buf[1048576];
+	long				size;
+	std::stringstream	ss;
+
+	bzero(buf, 1048576);
+	size = read(_fd, buf, 1048575);
+	if (size <= 0)
 	{
-		bzero(buf, 2048);
-		if (read(_fd, buf, 2047) <= 0)
-			break ;
-		ret.append(buf);
+		_done = true;
+		close(_fd);
+		if (_isChunked())
+			return "0\r\n\r\n";
+		return "";
 	}
-	close(_fd);
+	if (_isChunked())
+	{
+		std::string tmp;
+		std::string b = buf;
+		ss << std::hex << b.size();
+		ss >> tmp;
+		ret.append(tmp + "\r\n" + b + "\r\n");
+		return ret;
+	}
+	ret.append(buf);
 	return ret;
+}
+
+bool Response::_isChunked()
+{
+	Headers::iterator it = _headers.find("Transfer-Encoding");
+	if (it != _headers.end() && it->second == "chunked")
+		return true;
+	return false;
 }
 
 // Request Methods Handling
@@ -169,9 +217,7 @@ void Response::_internalRedir(std::string &fpath)
 	std::string new_rpath;
 	
 	size_t idx = _loc.index.find_first_not_of("/");
-	std::cout << "idx = " << _loc.index << "\n";
 	new_rpath = _req.path + _loc.index.substr(idx!=std::string::npos?idx:0);//(_loc.index.size() ? _loc.index : "index.html");
-	std::cout << new_rpath << "\n";
 	std::swap(_req.path, new_rpath);
 	Location nloc = _srv.locs[_getValidLocation(_srv.locs)];
 	// std::swap(_req.path, new_rpath);
@@ -229,6 +275,7 @@ bool Response::_readDir()
 	_headers["Date"] = timeToStr(time(NULL));
 	_headers["Content-Type"] = "text/html";
 	_headers["Transfer-Encoding"] = "chunked";
+	_ready = true;
 	return true;
 }
 
@@ -316,7 +363,6 @@ bool Response::_readFromCGI()
 		FD_ZERO(&set);
 		return _resGenerate(500);
 	}
-	std::cout << FD_ISSET(_fd, &set) << std::endl;
 	if (!FD_ISSET(_fd, &set))
 		return false;
 	bzero(buf, 10001);
@@ -371,6 +417,7 @@ bool Response::_getCgiHeaders(std::string &buffer)
 	}
 	_headers["Date"] = timeToStr(time(NULL));
 	_headers["Transfer-Encoding"] = "chunked";
+	_ready = true;
 	return true;
 }
 
@@ -418,6 +465,7 @@ bool Response::_resGenerate(size_t code)
 	_headers["Content-Length"] = utostr(sr.size());
 	_headers["Date"] = timeToStr(time(NULL));
 	_fd = open(_body.c_str(), O_RDONLY);
+	_ready = true;
 	return true;
 }
 
@@ -443,6 +491,7 @@ bool Response::_resGenerate(size_t code, std::string fpath, struct stat st)
 	ss << "\"" << std::hex << st.st_mtime << "-" << std::hex << st.st_size << "\"";
 	ss >> _headers["ETag"];
 	_body = fpath;
+	_ready = true;
 	return true;
 }
 
