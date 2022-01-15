@@ -245,7 +245,7 @@ bool Response::_handleCGI(std::string fpath, std::string query)
 	args = getCGIArgs(cgi_path, (char*)fpath.c_str(), (char*)query.c_str());
 
 	gettimeofday(&tv, NULL);
-	_body = "/tmp/cgi_" + utostr(tv.tv_sec*1e6 + tv.tv_usec) + ".res";
+	_body = "/tmp/cgi_" + utostr(tv.tv_sec*1e6 + tv.tv_usec) + ".html";
 	_fd = open(_body.c_str(), O_RDWR | O_CREAT, 0644);
 	if ((_pid = fork()) == -1) return _resGenerate(500);
 	gettimeofday(&tv, NULL);
