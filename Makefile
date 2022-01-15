@@ -1,7 +1,7 @@
 NAME = webserv
 CC = clang++
 FLAGS = -std=c++98 -Wall -Wextra -Werror -fsanitize=address -fsanitize=undefined -g3
-SRCS = main.cpp Response.cpp utils.cpp
+SRCS = main.cpp Response.cpp res_utils.cpp
 
 all: $(NAME)
 

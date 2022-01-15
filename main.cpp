@@ -44,11 +44,11 @@ int main()
 	hs.clear();
 	sns.clear();
 	// server 1
-	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/mnt/c/Users/pc/Desktop/webserv/www", "var.php", true));
-	// ls.push_back(newLocation("/dir0/index.html", vs(), std::make_pair(0,""), "/mnt/c/Users/pc/Desktop/webserv/www", "", false));
-	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), "/mnt/c/Users/pc/Desktop/webserv/www", "", true));
-	ls.push_back(newLocation("/dir0/dir00/", vs(), std::make_pair(307,"https://google.com"), "/mnt/c/Users/pc/Desktop/webserv/www", "index.php", false));
-	ls.push_back(newLocation(".php", vs(), std::make_pair(0,""), "/mnt/c/Users/pc/Desktop/webserv/www", "", false));
+	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "var.php", true));
+	// ls.push_back(newLocation("/dir0/index.html", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", false));
+	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", true));
+	ls.push_back(newLocation("/dir0/dir00/", vs(), std::make_pair(307,"https://google.com"), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "index.html", false));
+	ls.push_back(newLocation(".php", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", false));
 	sns.push_back("localhost");
 	srvs.push_back(newServer("127.0.0.1", 8000, sns, ls));
 	//////////
@@ -56,7 +56,7 @@ int main()
 	hs.clear();
 	sns.clear();
 	// server 2
-	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/mnt/c/Users/pc/Desktop/webserv/www/dir1", "f10", false));
+	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www/dir1", "f10", false));
 	sns.push_back("test.com");
 	sns.push_back("test.net");
 	srvs.push_back(newServer("127.0.0.1", 8000, sns, ls));
@@ -82,12 +82,12 @@ int main()
 
 /*
 	struct stat buf;
-	std::string path = "/mnt/c/Users/pc/Desktop/webserv/www/index.html";
+	std::string path = "/mnt/c/Users/Lenovo/Desktop/webserv/www/index.html";
 	if (stat(path.c_str(), &buf) == 0 && (buf.st_mode & S_IFMT) == S_IFREG)
 	{
 		int fd;
 		std::cout << "file found" << std::endl;
-		path = "/mnt/c/Users/pc/Desktop/webserv/www/dir0/";
+		path = "/mnt/c/Users/Lenovo/Desktop/webserv/www/dir0/";
 		if ((fd = open(path.c_str(), O_RDONLY)) == -1)
 			std::cout << "Error (open()): " << errno << std::endl;
 		else
