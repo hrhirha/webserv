@@ -1,18 +1,26 @@
 <html>
-	<head><title>upload file</title></head>
+<head>
+<link rel="stylesheet" type="text/css" href="css/bootstrap.min.css">
+<style>
+html, body {
+    height: 30%;
+}
+html {
+    display: table;
+    margin: auto;
+}
+body {
+    display: table-cell;
+    vertical-align: middle;
+    text-align: center;
+}
+</style>
+</head>
 <body>
-	<form method="post" action="/upload/" enctype="multipart/form-data">
-	  <div>
-	    <label for="name">Enter you name</label>
-	    <input type="text" id="name" name="myName">
-		<br>
-	    <label for="file">Choose a file</label>
-	    <input type="file" id="file" name="myFile">
-	  </div>
-	  <div>
-	    <button>Send the file</button>
-	  </div>
-	</form>
+<form action="/uploads/" method="post" enctype="multipart/form-data">
+    <h3>Upload</h3><br />
+    <input type="file" name="file" id="file" multiple>
+    <input class="btn btn-primary" type="submit" value="Submit" name="submit">
+</form>
 </body>
 </html>
-

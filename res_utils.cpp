@@ -317,6 +317,13 @@ size_t strtou(std::string s)
 	return n;
 }
 
+std::string	strtoupper(std::string s)
+{
+	for (size_t i = 0; i < s.size(); i++)
+		s[i] = toupper(s[i]);
+	return s;
+}
+
 std::string timeToStr(time_t clock, bool lst)
 {
 	struct tm	*tm;
@@ -332,6 +339,40 @@ std::string timeToStr(time_t clock, bool lst)
 	char time[30];
 	strftime(time, 30, "%a, %d %b %y %H:%M:%S GMT", tm);
 	return std::string(time);
+}
+
+char **vectorToPtr(std::vector<std::string> &v)
+{
+	char **ptr = new char*[v.size() + 1];
+	for (size_t i = 0; i < v.size(); i++)
+	{
+		ptr[i] = new char[v[i].length()+1];
+		strcpy(ptr[i], v[i].c_str());
+	}
+	ptr[v.size()] = NULL;
+	return ptr;
+}
+
+Headers strToHeaders(char *str)
+{
+	Headers hs;
+	char	*arg;
+
+	arg = strtok(str, "\r\n");
+	while (arg)
+	{
+		std::string  line = arg;
+		size_t col = line.find(":");
+		if (col != std::string::npos)
+		{
+			std::string key = line.substr(0, col);
+			std::string val = line.substr(col+1);
+			val = val.substr(val.find_first_not_of(" "), val.find_last_not_of(" ")+1);
+			hs[key] = val;
+		}
+		arg = strtok(NULL, "\r\n");
+	}
+	return hs;
 }
 
 std::string getHyperlinkTag(std::string &name, struct stat &st)
@@ -350,23 +391,9 @@ std::string getHyperlinkTag(std::string &name, struct stat &st)
 	return a;
 }
 
-char **getCGIArgs(char*cgi_path, char*fpath, char*query)
+void freePtr(char **ptr)
 {
-	std::vector<char*> args;
-
-	args.push_back(cgi_path);
-	args.push_back(fpath);
-	char *arg = strtok(query, "&");
-	while (arg)
-	{
-		args.push_back(arg);
-		arg = strtok(NULL, "&");
-	}
-	char **ptr = new char*[args.size() + 1];
-	for (size_t i = 0; i < args.size(); i++)
-	{
-		ptr[i] = args[i];
-	}
-	ptr[args.size()] = NULL;
-	return ptr;
+	for (int i = 0; ptr[i]; i++)
+		delete [] ptr[i];
+	delete [] ptr;
 }

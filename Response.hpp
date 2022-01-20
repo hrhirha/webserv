@@ -43,8 +43,8 @@ struct Location
 	std::string						root;
 	std::string						index;
 	bool							autoindex;
-	bool							upload;
 	std::string						upload_path;
+	std::string						cgi_path;
 };
 
 typedef std::vector<Location>				Locations;
@@ -83,6 +83,9 @@ class Response
 		// Response is ready
 		bool				_ready;
 		bool				_done;
+		// upload
+		int					_req_fd;
+		std::string			_boundary;
 
 	public:
 		Response();
@@ -105,12 +108,21 @@ class Response
 
 		bool	_handleRegFile(std::string, struct stat);
 
+		bool	_preHandleDir(std::string&, size_t);
 		bool	_handleDir(std::string, struct stat, size_t);
 		void	_internalRedir(std::string &);
 		bool	_dirListing();
 		bool	_readDir();
+	
+		bool	_handlePostDir(std::string, struct stat, size_t);
+		bool	_handleUpload();
+		bool	_parseBody();
+		bool	_newPart(std::string &, Headers &);
+		void	_moveUploadedFile(Headers &);
 
 		bool	_handleCGI(std::string, std::string);
+		char	**_getCGIArgs(std::string const &);
+		char	**_getCGIEnv(std::string const &);
 		bool	_waitProc();
 		bool	_readFromCGI();
 		bool	_getCgiHeaders(std::string &);
@@ -125,6 +137,8 @@ class Response
 		size_t	_getValidServerCnf(std::vector<ServerCnf> const &, struct sockaddr_in const);
 		size_t	_getValidLocation(Locations const &);
 		bool	_checkLoc();
+
+		int		_select(int);
 };
 
 std::string	specRes(size_t);
@@ -133,9 +147,14 @@ std::string statusMessage(size_t);
 
 std::string utostr(size_t);
 size_t		strtou(std::string);
+std::string	strtoupper(std::string);
 std::string timeToStr(time_t, bool=false);
+char		**vectorToPtr(std::vector<std::string> &);
+Headers		strToHeaders(char *);
+
 std::string	getHyperlinkTag(std::string&, struct stat&);
 
-char		**getCGIArgs(char*, char*, char*);
+void		freePtr(char **);
+
 
 #endif

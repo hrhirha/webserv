@@ -46,7 +46,7 @@ int main()
 	// server 1
 	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "index.html", true));
 	// ls.push_back(newLocation("/dir0/index.html", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", false));
-	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", true));
+	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "cf.sh", true));
 	ls.push_back(newLocation("/dir0/dir00/", vs(), std::make_pair(307,"https://google.com"), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "index.html", false));
 	ls.push_back(newLocation(".php", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", false));
 	sns.push_back("localhost");
@@ -64,7 +64,9 @@ int main()
 
 	// Request
 	hs.insert(std::make_pair("Host", "localhost"));
-	Request req = {"GET", "/", "name=hamza&password=pass!!@word&", "HTTP/1.1", hs, ""};
+	hs.insert(std::make_pair("Content-Type", "multipart/form-data; boundary=---------------------------39448993798564082171882864461"));
+	hs.insert(std::make_pair("Content-Length", "1500212002"));
+	Request req = {"POST", "/dir0/", "", "HTTP/1.1", hs, "/tmp/0046144664"};
 
 	bzero(&addr, sizeof(addr));
 	addr.sin_family = AF_INET;
@@ -75,6 +77,7 @@ int main()
 	std::cout << "--------------------------------------------------------------\n";
 	while (1)
 	{
+		// std::cout << "serving clients\n";
 		if (res.build(req, srvs, addr))
 		{
 			std::cout << res.get();

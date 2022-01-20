@@ -52,7 +52,7 @@ redirection:
 
 ---------------------------------------------------------------------
 POST request:
-	Content-Type: x-www-urlencoded (key1=value1&key2=value2..)
+	Content-Type: x-www-form-urlencoded (key1=value1&key2=value2..)
 	Content-Type: multipart/form-data; boundary=boundary
 	(
 		--boundary
@@ -65,3 +65,78 @@ POST request:
 		value2
 		--boundary--
 	)
+
+cgi env:
+	QUERY_STRING=req.query;
+	SCRIPT_FILENAME=fpath;
+	PATH_INFO=cgi_script;
+	CONTENT_TYPE=;
+	CONTENT_LENGTH=;
+	REQUEST_METHOD=;
+
+
+GET CGI ENV
+{
+	HTTP_ACCEPT = '*/*',
+	HTTP_USER_AGENT = 'curl/7.68.0',
+	HTTP_HOST = '127.0.0.1:8080',
+
+	REDIRECT_STATUS = '200',
+	SERVER_NAME = 'localhost',
+	SERVER_PORT = '8080',
+	SERVER_ADDR = '127.0.0.1',
+	REMOTE_PORT = '52480',
+	REMOTE_ADDR = '127.0.0.1',
+	SERVER_SOFTWARE = 'nginx/1.20.2',
+	GATEWAY_INTERFACE = 'CGI/1.1',
+	REQUEST_SCHEME = 'http',
+	SERVER_PROTOCOL = 'HTTP/1.1',
+	DOCUMENT_ROOT = '/mnt/c/Users/Lenovo/Desktop/webserv/www',
+	DOCUMENT_URI = '/hello.php',
+	REQUEST_URI = '/hello.php?name=hamza&password=pass!!word',
+	SCRIPT_NAME = '/hello.php',
+	CONTENT_LENGTH = '',
+	CONTENT_TYPE = '',
+	REQUEST_METHOD = 'GET',
+	QUERY_STRING = 'name=hamza&password=pass!!word',
+	SCRIPT_FILENAME = '/mnt/c/Users/Lenovo/Desktop/webserv/www/hello.php',
+	FCGI_ROLE = 'RESPONDER',
+}
+
+POST CGI ENV
+{
+	HTTP_CONTENT_TYPE = 'application/x-www-form-urlencoded',
+	HTTP_CONTENT_LENGTH = '30',
+	HTTP_ACCEPT = '*/*',
+	HTTP_USER_AGENT = 'curl/7.68.0',
+	HTTP_HOST = '127.0.0.1:8080',
+
+	REDIRECT_STATUS = '200',
+	SERVER_NAME = 'localhost',
+	SERVER_PORT = '8080',
+	SERVER_ADDR = '127.0.0.1',
+	REMOTE_PORT = '52488',
+	REMOTE_ADDR = '127.0.0.1',
+	SERVER_SOFTWARE = 'nginx/1.20.2',
+	GATEWAY_INTERFACE = 'CGI/1.1',
+	REQUEST_SCHEME = 'http',
+	SERVER_PROTOCOL = 'HTTP/1.1',
+	DOCUMENT_ROOT = '/mnt/c/Users/Lenovo/Desktop/webserv/www',
+	DOCUMENT_URI = '/hello.php',
+	REQUEST_URI = '/hello.php',
+	SCRIPT_NAME = '/hello.php',
+	CONTENT_LENGTH = '30',
+	CONTENT_TYPE = 'application/x-www-form-urlencoded',
+	REQUEST_METHOD = 'POST',
+	QUERY_STRING = '',
+	SCRIPT_FILENAME = '/mnt/c/Users/Lenovo/Desktop/webserv/www/hello.php',
+	FCGI_ROLE = 'RESPONDER',
+}
+
+---------------------------------------------------------------------------------
+req.method != allowed_methods ==> 403
+POST static_file ==> 405
+POST directory:
+	if (upload) => _upload;
+	if (index is CGI) => CGI
+	if (index is static) => 405
