@@ -114,27 +114,21 @@ bool Response::done()
 std::string Response::_readResBody(std::string &ret)
 {
 	char				buf[1048576];
-	int					size;
 	std::stringstream	ss;
 
-	size = read(_fd, buf, 1048576);
-	// if (size <= 0 && ret.empty())
-	// {
-	// 	_done = true;
-	// 	close(_fd);
-	// 	if (_isChunked())
-	// 		return "0\r\n\r\n";
-	// 	return "";
-	// }
-	if (size <= 0) _done = true;
+	int sel = _select(_fd);
+	if (sel <= 0) // select failed | _fd is not in fd_set
+		return "";
+	int rd = read(_fd, buf, 1048576);
+	if (rd <= 0) _done = true;
 	if (_isChunked())
 	{
-		std::string b(buf, size);
+		std::string b(buf, rd);
 		ss << std::hex << b.size();
 		ret.append(ss.str() + "\r\n" + b + "\r\n");
 		return ret;
 	}
-	ret.append(buf, size);
+	ret.append(buf, rd);
 	return ret;
 }
 
@@ -241,6 +235,7 @@ void Response::_internalRedir(std::string &fpath)
 	
 	size_t idx = _loc.index.find_first_not_of("/");
 	new_rpath = _req.path + _loc.index.substr(idx!=std::string::npos?idx:0);//(_loc.index.size() ? _loc.index : "index.html");
+	std::string tmp = _req.path;
 	_req.path = new_rpath;
 	Location nloc = _srv.locs[_getValidLocation(_srv.locs)];
 	fpath += _loc.index.size() ? _loc.index : "index.html";
@@ -248,6 +243,7 @@ void Response::_internalRedir(std::string &fpath)
 		fpath = nloc.root + _req.path + (_req.path[_req.path.size()-1] == '/' ? (nloc.index.size() ? nloc.index : "index.html") : "");
 	_loc = nloc;
 	_dpath = fpath.substr(0, fpath.find_last_of("/")+1);
+	_req.path = tmp;
 }
 
 bool Response::_dirListing()
@@ -345,7 +341,7 @@ bool Response::_parseBody()
 		close(_req_fd);
 		_req_fd = -1;
 		_ready = true;
-		return true;
+		return _resGenerate(500);
 	}
 	if (sel == 0) return false; // fd not in fd_set
 	int rd = read(_req_fd, buf, 1048576);
@@ -417,7 +413,8 @@ bool Response::_handleCGI(std::string fpath, std::string query)
 {
 	(void)query;
 	struct timeval	tv;
-	char			**args, **env;
+	char			**args;
+	char			**env;
 
 	std::cout << "CGI handling" << std::endl;
 	_loc.cgi_path = "/usr/bin/php-cgi";
@@ -470,7 +467,6 @@ char **Response::_getCGIEnv(std::string const &fpath)
 	{
 		v.push_back("HTTP_"+strtoupper(f->first)+"="+f->second);
 	}
-	(void)fpath;
 	v.push_back("REDIRECT_STATUS=200");
 	v.push_back("SERVER_NAME=" + _srv.server_names[0]);
 	v.push_back("SERVER_PORT=" + utostr(_srv.port));
@@ -541,7 +537,7 @@ bool Response::_readFromCGI()
 	{
 		remove(_body.c_str());
 		_body.clear();
-		return true;
+		return _resGenerate(500);
 	}
 	if (sel == 0) return false;
 	int rd = read(_fd, buf, 1048576);
@@ -765,7 +761,7 @@ int	Response::_select(int fd)
 	{
 		close(fd);
 		FD_ZERO(&set);
-		_resGenerate(500);
+		// _resGenerate(500);
 		return -1;
 	}
 	if (!FD_ISSET(fd, &set))
