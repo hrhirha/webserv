@@ -80,7 +80,8 @@ bool Response::build(size_t code)
 		return _resGenerate(code);
 	if (_checkLoc()) return true;
 
-	return (this->*(_req_func(_req.method)))(_srv.port);
+	std::string fpath = _loc.root + _req.path;
+	return (this->*(_req_func(_req.method)))(_srv.port, fpath);
 }
 
 std::string Response::get()
@@ -141,15 +142,11 @@ bool Response::_isChunked()
 }
 
 // Request Methods Handling
-bool Response::_handleGetRequest(size_t port)
+bool Response::_handleGetRequest(size_t port, std::string fpath)
 {
 	struct stat st;
 	int			st_ret;
 
-	std::cout << "GET Request" << std::endl;
-	std::string fpath = _loc.root + _req.path;
-	if (_isCGI(_loc.path)) // Handle CGI
-		return _handleCGI(fpath, _req.query);
 	st_ret = stat(fpath.c_str(), &st);
 	if (!st_ret && S_ISREG(st.st_mode)) // Handle regular file
 		return _handleRegFile(fpath, st);
@@ -160,48 +157,58 @@ bool Response::_handleGetRequest(size_t port)
 	return _resGenerate(403); // if (errno == EACCES)
 }
 
-bool Response::_handlePostRequest(size_t port)
+bool Response::_handlePostRequest(size_t port, std::string fpath)
 {
 	struct stat st;
 	int			st_ret;
-	
-	std::cout << "POST Request" << std::endl;
-	(void)port;
-	std::string fpath = _loc.root + _req.path;
-	if (_isCGI(_loc.path)) // Handle CGI
-		return _handleCGI(fpath, _req.query);
+
 	st_ret = stat(fpath.c_str(), &st);
+	if (_isCGI(_loc.path)) // Handle CGI
+		return _handleCGI(fpath);
 	if (!st_ret && S_ISDIR(st.st_mode)) // Handle directory
 		return _handlePostDir(fpath, st, port);
 	return _resGenerate(405);
 }
 
-bool Response::_handleDeleteRequest(size_t port)
+bool Response::_handleDeleteRequest(size_t port, std::string fpath)
 {
+	struct stat st;
+	int			st_ret;
+
 	(void)port;
-	std::cout << "Delete Request" << std::endl;
-	return true;
+	(void)fpath;
+	st_ret = stat(fpath.c_str(), &st);
+	if (_isCGI(_loc.path))
+		return _handleCGI(fpath);
+	return _resGenerate(405);
 }
 
-// get Static file
+// get Regular file
 bool Response::_handleRegFile(std::string fpath, struct stat st)
 {
-	std::cout << "static file" << std::endl;
+	if (_isCGI(_loc.path)) // Handle CGI
+		return _handleCGI(fpath);
 	errno = 0;
 	_fd = open(fpath.c_str(), O_RDONLY);
 	if (_fd == -1)
-	{
 		return _resGenerate(errno == EMFILE ? 500 : 403);
-	}
 	return _resGenerate(200, fpath, st);
 }
 
 // Directory GET/POST/DELETE
 bool Response::_preHandleDir(std::string &fpath, size_t port)
 {
-	std::cout << "directory" << std::endl;
-	if (fpath[fpath.size() - 1] != '/') // _request path does't end with '/'
+	if (fpath[fpath.size() - 1] != '/' /*&& fpath.substr(fpath.find_last_of("/")) != std::string("..")*/) // _request path does't end with '/'
 		return _resGenerate(301, port);
+
+	// chdir(fpath.c_str());
+	// char *cwd = get_current_dir_name();
+	// fpath = cwd;
+	// if (fpath.find(_loc.root) == std::string::npos)
+	// 	_req.path = "/";
+	// fpath = _loc.root + _req.path;
+	// free(cwd);
+
 	_internalRedir(fpath); // if there is more appropraite location
 	if (_checkLoc())
 		return true;
@@ -214,7 +221,7 @@ bool Response::_handleDir(std::string fpath, struct stat st, size_t port)
 	if (_preHandleDir(fpath, port))
 		return true;
 	if (_isCGI(_loc.path))
-		return _handleCGI(fpath, _req.query);
+		return _handleCGI(fpath);
 	// process regular file
 	bzero(&st, sizeof(struct stat));
 	if (!stat(fpath.c_str(), &st) && S_ISDIR(st.st_mode) && _loc.autoindex)
@@ -234,10 +241,11 @@ void Response::_internalRedir(std::string &fpath)
 	std::string new_rpath;
 	
 	size_t idx = _loc.index.find_first_not_of("/");
-	new_rpath = _req.path + _loc.index.substr(idx!=std::string::npos?idx:0);//(_loc.index.size() ? _loc.index : "index.html");
+	new_rpath = _req.path + _loc.index.substr(idx!=std::string::npos ? idx : 0);//(_loc.index.size() ? _loc.index : "index.html");
 	std::string tmp = _req.path;
 	_req.path = new_rpath;
 	Location nloc = _srv.locs[_getValidLocation(_srv.locs)];
+	std::cout << "loc: " << nloc.path << "\n";
 	fpath += _loc.index.size() ? _loc.index : "index.html";
 	if (_loc.path != nloc.path)
 		fpath = nloc.root + _req.path + (_req.path[_req.path.size()-1] == '/' ? (nloc.index.size() ? nloc.index : "index.html") : "");
@@ -307,7 +315,14 @@ bool Response::_handlePostDir(std::string fpath, struct stat st, size_t port)
 	if (!_loc.upload_path.empty())
 		return _handleUpload();
 	if (_isCGI(_loc.path))
-		return _handleCGI(fpath, _req.query);
+		return _handleCGI(fpath);	
+	bzero(&st, sizeof(struct stat));
+	if (!stat(fpath.c_str(), &st) && S_ISDIR(st.st_mode))
+		return _resGenerate(403);
+	errno = 0;
+	_fd = open(fpath.c_str(), O_RDONLY);
+	if (_fd == -1)
+		return _resGenerate(errno == EMFILE ? 500 : 403);
 	return _resGenerate(405);
 }
 
@@ -409,14 +424,12 @@ void	Response::_moveUploadedFile(Headers &th)
 }
 
 // get CGI
-bool Response::_handleCGI(std::string fpath, std::string query)
+bool Response::_handleCGI(std::string fpath)
 {
-	(void)query;
 	struct timeval	tv;
 	char			**args;
 	char			**env;
 
-	std::cout << "CGI handling" << std::endl;
 	_loc.cgi_path = "/usr/bin/php-cgi";
 	args = _getCGIArgs(fpath);
 	env = _getCGIEnv(fpath);
@@ -478,9 +491,9 @@ char **Response::_getCGIEnv(std::string const &fpath)
 	v.push_back("REQUEST_SCHEME=http");
 	v.push_back("SERVER_PROTOCOL=HTTP/1.1");
 	v.push_back("DOCUMENT_ROOT=" + _loc.root);
-	v.push_back("DOCUMENT_URI=" + fpath.substr(fpath.find(_req.path)));
+	v.push_back("DOCUMENT_URI=" + fpath.substr(_loc.root.size()));
 	v.push_back("REQUEST_URI=" + _req.path);
-	v.push_back("SCRIPT_NAME=" + fpath.substr(fpath.find(_req.path)));
+	v.push_back("SCRIPT_NAME=" + fpath.substr(_loc.root.size()));
 	v.push_back("CONTENT_LENGTH=" + _req.headers["Content-Length"]);
 	v.push_back("CONTENT_TYPE=" + _req.headers["Content-Type"]);
 	v.push_back("REQUEST_METHOD=" + _req.method);
@@ -743,7 +756,7 @@ bool Response::_checkLoc()
 	vs::iterator first = _loc.accepted_methods.begin();
 	vs::iterator last = _loc.accepted_methods.end();
 	if (_loc.accepted_methods.size() && std::find(first, last, _req.method) == last)
-		return _resGenerate(405);
+		return _resGenerate(403);
 	if (_loc.redirect.first)
 		return _resRedir(_loc.redirect.first, _srv.port, _loc.redirect.second);
 	return false;

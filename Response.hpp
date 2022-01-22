@@ -60,7 +60,7 @@ struct ServerCnf
 
 class Response
 {
-	typedef bool (Response::*func)(size_t);
+	typedef bool (Response::*func)(size_t, std::string);
 	func		_req_func(std::string);
 	
 	private:
@@ -102,9 +102,9 @@ class Response
 		std::string	_readResBody(std::string &);
 		bool		_isChunked();
 
-		bool	_handleGetRequest(size_t);
-		bool	_handlePostRequest(size_t);
-		bool	_handleDeleteRequest(size_t);
+		bool	_handleGetRequest(size_t, std::string);
+		bool	_handlePostRequest(size_t, std::string);
+		bool	_handleDeleteRequest(size_t, std::string);
 
 		bool	_handleRegFile(std::string, struct stat);
 
@@ -120,7 +120,7 @@ class Response
 		bool	_newPart(std::string &, Headers &);
 		void	_moveUploadedFile(Headers &);
 
-		bool	_handleCGI(std::string, std::string);
+		bool	_handleCGI(std::string);
 		char	**_getCGIArgs(std::string const &);
 		char	**_getCGIEnv(std::string const &);
 		bool	_waitProc();
