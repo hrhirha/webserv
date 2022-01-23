@@ -1,4 +1,4 @@
-#include "Response.hpp"
+#include "src/Response/Response.hpp"
 #include <sys/stat.h>
 #include <cerrno>
 #include <fcntl.h>
@@ -66,7 +66,7 @@ int main()
 	hs.insert(std::make_pair("Host", "localhost"));
 	// hs.insert(std::make_pair("Content-Type", "multipart/form-data; boundary=---------------------------144761614340942986943850864353"));
 	// hs.insert(std::make_pair("Content-Length", "442"));
-	Request req = {"DELETE", "/dir0/", "", "HTTP/1.1", hs, ""};
+	Request req = {"GET", "/dir0/", "", "HTTP/1.1", hs, ""};
 
 	bzero(&addr, sizeof(addr));
 	addr.sin_family = AF_INET;
