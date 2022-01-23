@@ -59,6 +59,7 @@ Response::~Response()
 	_body.clear();
 	// _req.~Request();
 	// _srv.~ServerCnf();
+	// _loc.~Location();
 }
 
 bool Response::build(Request const &req, std::vector<ServerCnf> const &serv_cnfs,
@@ -121,7 +122,11 @@ std::string Response::_readResBody(std::string &ret)
 	if (sel <= 0) // select failed | _fd is not in fd_set
 		return "";
 	int rd = read(_fd, buf, 1048576);
-	if (rd <= 0) _done = true;
+	if (rd <= 0)
+	{
+		_done = true;
+		close(_fd);
+	}
 	if (_isChunked())
 	{
 		std::string b(buf, rd);

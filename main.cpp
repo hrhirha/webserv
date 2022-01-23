@@ -46,7 +46,7 @@ int main()
 	// server 1
 	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "hello.php", true));
 	// ls.push_back(newLocation("/dir0/index.html", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", false));
-	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", true));
+	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "var.php", false));
 	ls.push_back(newLocation("/dir0/dir00/", vs(), std::make_pair(307,"https://google.com"), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "index.html", false));
 	ls.push_back(newLocation(".php", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", false));
 	sns.push_back("localhost");
