@@ -316,7 +316,7 @@ bool Response::_handlePostDir(std::string fpath, struct stat st, size_t port)
 	(void)st;
 	if (_preHandleDir(fpath, port))
 		return true;
-	_loc.upload_path = "/uploads/"; // to be removed
+	// _loc.upload_path = "/uploads/"; // to be removed
 	if (!_loc.upload_path.empty())
 		return _handleUpload();
 	if (_isCGI(_loc.path))
@@ -436,7 +436,8 @@ bool Response::_handleCGI(std::string fpath)
 	char			**args;
 	char			**env;
 
-	_loc.cgi_path = "/usr/bin/php-cgi";
+	// _loc.cgi_path = "/usr/bin/php-cgi"; // to be removed
+	_loc.cgi_path = "/Users/hrhirha/goinfre/.brew/bin/php-cgi"; // to be removed
 	args = _getCGIArgs(fpath);
 	env = _getCGIEnv(fpath);
 
@@ -498,7 +499,7 @@ char **Response::_getCGIEnv(std::string const &fpath)
 	v.push_back("SERVER_PROTOCOL=HTTP/1.1");
 	v.push_back("DOCUMENT_ROOT=" + _loc.root);
 	v.push_back("DOCUMENT_URI=" + fpath.substr(_loc.root.size()));
-	v.push_back("REQUEST_URI=" + _req.path);
+	v.push_back("REQUEST_URI=" + _req.path + "?" +_req.query);
 	v.push_back("SCRIPT_NAME=" + fpath.substr(_loc.root.size()));
 	v.push_back("CONTENT_LENGTH=" + _req.headers["Content-Length"]);
 	v.push_back("CONTENT_TYPE=" + _req.headers["Content-Type"]);

@@ -48,7 +48,7 @@ int main()
 	// server 1
 	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), html, "index.html", true));
 	// ls.push_back(newLocation("/dir0/index.html", vs(), std::make_pair(0,""), html, "", false));
-	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), html, "", true));
+	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), html, "var.php", true));
 	ls.push_back(newLocation("/uploads/", vs(1, "POST"), std::make_pair(0,""), html, "", false));
 	ls.push_back(newLocation("/dir0/dir00/", vs(), std::make_pair(307,"https://google.com"), html, "index.html", false));
 	ls.push_back(newLocation(".php", vs(), std::make_pair(0,""), html, "", false));
@@ -67,9 +67,9 @@ int main()
 
 	// Request
 	hs.insert(std::make_pair("Host", "localhost"));
-	hs.insert(std::make_pair("Content-Type", "multipart/form-data; boundary=---------------------------144761614340942986943850864353"));
-	hs.insert(std::make_pair("Content-Length", "403"));
-	Request req = {"POST", "/uploads/", "", "HTTP/1.1", hs, "/Users/hrhirha/Desktop/webserv/www/upload_body.txt"};
+	// hs.insert(std::make_pair("Content-Type", "multipart/form-data; boundary=---------------------------144761614340942986943850864353"));
+	// hs.insert(std::make_pair("Content-Length", "403"));
+	Request req = {"GET", "/hello.php", "", "HTTP/1.1", hs, ""};
 
 	bzero(&addr, sizeof(addr));
 	addr.sin_family = AF_INET;
