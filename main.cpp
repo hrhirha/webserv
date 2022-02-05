@@ -35,8 +35,10 @@ int main()
 	Response				res;
 	struct sockaddr_in		addr;
 
+	std::string html = "/Users/hrhirha/Desktop/webserv/www";
+
 	// server 0
-	ls.push_back(newLocation("/", vs(), std::make_pair(444,"google.com"), "", "", false));
+	ls.push_back(newLocation("/", vs(), std::make_pair(444,""), "", "", false));
 	sns.push_back("");
 	srvs.push_back(newServer("127.0.0.1", 8000, sns, ls));
 	//////////
@@ -44,11 +46,12 @@ int main()
 	hs.clear();
 	sns.clear();
 	// server 1
-	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "hello.php", true));
-	// ls.push_back(newLocation("/dir0/index.html", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", false));
-	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "var.php", false));
-	ls.push_back(newLocation("/dir0/dir00/", vs(), std::make_pair(307,"https://google.com"), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "index.html", false));
-	ls.push_back(newLocation(".php", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www", "", false));
+	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), html, "index.html", true));
+	// ls.push_back(newLocation("/dir0/index.html", vs(), std::make_pair(0,""), html, "", false));
+	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), html, "", true));
+	ls.push_back(newLocation("/uploads/", vs(1, "POST"), std::make_pair(0,""), html, "", false));
+	ls.push_back(newLocation("/dir0/dir00/", vs(), std::make_pair(307,"https://google.com"), html, "index.html", false));
+	ls.push_back(newLocation(".php", vs(), std::make_pair(0,""), html, "", false));
 	sns.push_back("localhost");
 	srvs.push_back(newServer("127.0.0.1", 8000, sns, ls));
 	//////////
@@ -56,7 +59,7 @@ int main()
 	hs.clear();
 	sns.clear();
 	// server 2
-	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), "/mnt/c/Users/Lenovo/Desktop/webserv/www/dir1", "f10", false));
+	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), html+"/dir1", "f10", false));
 	sns.push_back("test.com");
 	sns.push_back("test.net");
 	srvs.push_back(newServer("127.0.0.1", 8000, sns, ls));
@@ -64,9 +67,9 @@ int main()
 
 	// Request
 	hs.insert(std::make_pair("Host", "localhost"));
-	// hs.insert(std::make_pair("Content-Type", "multipart/form-data; boundary=---------------------------144761614340942986943850864353"));
-	// hs.insert(std::make_pair("Content-Length", "442"));
-	Request req = {"GET", "/dir0/", "", "HTTP/1.1", hs, ""};
+	hs.insert(std::make_pair("Content-Type", "multipart/form-data; boundary=---------------------------144761614340942986943850864353"));
+	hs.insert(std::make_pair("Content-Length", "403"));
+	Request req = {"POST", "/uploads/", "", "HTTP/1.1", hs, "/Users/hrhirha/Desktop/webserv/www/upload_body.txt"};
 
 	bzero(&addr, sizeof(addr));
 	addr.sin_family = AF_INET;
@@ -87,14 +90,25 @@ int main()
 	}
 	std::cout << "--------------------------------------------------------------\n";
 
+	// for (int i = 3; i <= 1025; i++)
+	// {
+	// 	int fd = open(("tmp/" + std::to_string(i)).c_str(), O_CREAT | O_RDWR, 0644);
+	// 	std::cout << "fd = " << fd << '\n';
+	// 	if (fd == -1)
+	// 	{
+	// 		std::cout << "errno = " << errno << "\n";
+	// 		break ;
+	// 	}
+	// }
+
 /*
 	struct stat buf;
-	std::string path = "/mnt/c/Users/Lenovo/Desktop/webserv/www/index.html";
+	std::string path = "/Users/hrhirha/Desktop/webserv/www/index.html";
 	if (stat(path.c_str(), &buf) == 0 && (buf.st_mode & S_IFMT) == S_IFREG)
 	{
 		int fd;
 		std::cout << "file found" << std::endl;
-		path = "/mnt/c/Users/Lenovo/Desktop/webserv/www/dir0/";
+		path = "/Users/hrhirha/Desktop/webserv/www/dir0/";
 		if ((fd = open(path.c_str(), O_RDONLY)) == -1)
 			std::cout << "Error (open()): " << errno << std::endl;
 		else
@@ -120,6 +134,7 @@ int main()
 	std::cout << tm.tm_hour << ":" << tm.tm_min << ":" << tm.tm_sec << " - " << tm.tm_mday << "/" << tm.tm_mon+1 << "/" << 1900+tm.tm_year << std::endl;
 	std::cout << asctime(&tm) << std::endl;
 */
+	// std::cout << "tablesize = " << getdtablesize() << "\n";
 	// while (1)
 	// {
 	// 	usleep(10);

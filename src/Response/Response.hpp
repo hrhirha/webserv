@@ -10,6 +10,7 @@
 # include <cstdio>
 # include <cstring>
 # include <climits>
+# include <csignal>
 # include <strings.h>
 # include <fcntl.h>
 # include <errno.h>

@@ -246,11 +246,11 @@ void Response::_internalRedir(std::string &fpath)
 	std::string new_rpath;
 	
 	size_t idx = _loc.index.find_first_not_of("/");
-	new_rpath = _req.path + _loc.index.substr(idx!=std::string::npos ? idx : 0);//(_loc.index.size() ? _loc.index : "index.html");
+	new_rpath = _req.path + _loc.index.substr(idx!=std::string::npos ? idx : 0);
 	std::string tmp = _req.path;
 	_req.path = new_rpath;
 	Location nloc = _srv.locs[_getValidLocation(_srv.locs)];
-	std::cout << "loc: " << nloc.path << "\n";
+	// std::cout << "loc: " << nloc.path << "\n";
 	fpath += _loc.index.size() ? _loc.index : "index.html";
 	if (_loc.path != nloc.path)
 		fpath = nloc.root + _req.path + (_req.path[_req.path.size()-1] == '/' ? (nloc.index.size() ? nloc.index : "index.html") : "");
@@ -316,7 +316,7 @@ bool Response::_handlePostDir(std::string fpath, struct stat st, size_t port)
 	(void)st;
 	if (_preHandleDir(fpath, port))
 		return true;
-	// _loc.upload_path = "/uploads/";
+	_loc.upload_path = "/uploads/"; // to be removed
 	if (!_loc.upload_path.empty())
 		return _handleUpload();
 	if (_isCGI(_loc.path))
@@ -328,6 +328,7 @@ bool Response::_handlePostDir(std::string fpath, struct stat st, size_t port)
 	_fd = open(fpath.c_str(), O_RDONLY);
 	if (_fd == -1)
 		return _resGenerate(errno == EMFILE ? 500 : 403);
+	close(_fd); _fd = -1;
 	return _resGenerate(405);
 }
 
@@ -420,7 +421,7 @@ void	Response::_moveUploadedFile(Headers &th)
 	{
 		filename = filename.substr(is_file+10);
 		filename = filename.substr(0, filename.size()-1);
-		std::string cmd = "mv " + _body + " " + _loc.root + _loc.upload_path + "/" + filename;
+		std::string cmd = "cp " + _body + " " + _loc.root + _loc.upload_path + (_loc.upload_path[_loc.upload_path.size()-1] != '/' ? "/" : "") + filename;
 		system(cmd.c_str());
 	}
 	remove(_body.c_str());
@@ -428,7 +429,7 @@ void	Response::_moveUploadedFile(Headers &th)
 	th.clear();
 }
 
-// get CGI
+// CGI
 bool Response::_handleCGI(std::string fpath)
 {
 	struct timeval	tv;
@@ -564,7 +565,8 @@ bool Response::_readFromCGI()
 	{
 		_ready = true;
 		_headers["Date"] = timeToStr(time(NULL));
-		_headers["Transfer-Encoding"] = "chunked";
+		if (!_headers.count("Content-Length"))
+			_headers["Transfer-Encoding"] = "chunked";
 		lseek(_fd, buffer.size()*-1, SEEK_CUR);
 		Headers::iterator it = _headers.find("Status");
 		if (it != _headers.end())
@@ -779,7 +781,6 @@ int	Response::_select(int fd)
 	{
 		close(fd);
 		FD_ZERO(&set);
-		// _resGenerate(500);
 		return -1;
 	}
 	if (!FD_ISSET(fd, &set))
