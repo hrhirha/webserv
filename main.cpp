@@ -48,7 +48,7 @@ int main()
 	// server 1
 	ls.push_back(newLocation("/", vs(), std::make_pair(0,""), html, "index.html", true));
 	// ls.push_back(newLocation("/dir0/index.html", vs(), std::make_pair(0,""), html, "", false));
-	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), html, "var.php", true));
+	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), html, "", true));
 	ls.push_back(newLocation("/uploads/", vs(1, "POST"), std::make_pair(0,""), html, "", false));
 	ls.push_back(newLocation("/dir0/dir00/", vs(), std::make_pair(307,"https://google.com"), html, "index.html", false));
 	ls.push_back(newLocation(".php", vs(), std::make_pair(0,""), html, "", false));
@@ -72,13 +72,20 @@ int main()
 	// hs.insert(std::make_pair("Content-Length", "403")); // body_upload.txt
 	hs.insert(std::make_pair("Content-Length", "308")); // multipart_body.txt
 	// hs.insert(std::make_pair("Content-Length", "34")); // xwww_body.txt
-	Request req = {"POST", "/hello.php", "name=Hamza", "HTTP/1.1", hs, "www/multipart_body.txt"};
+	Request req = {"GET", "/", "", "HTTP/1.1", hs, ""};
 
 	bzero(&addr, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(8000);
 	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	//////////
+
+	{
+		Response res1;
+		res1.build(req, srvs, addr);
+
+		res = res1;
+	}
 
 	std::cout << "--------------------------------------------------------------\n";
 	while (1)

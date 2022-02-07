@@ -15,15 +15,10 @@ Response::Response() :
 	_headers["Content-Type"] = "application/octet-stream";
 }
 
-Response::Response(Response const &res) :
-	_statusCode(res._statusCode), _statusMsg(res._statusMsg), _headers(res._headers),
-	_body(res._body),
-	_req(res._req), _srv(res._srv), _loc(res._loc),
-	_pid(res._pid), _fd(res._fd), _timeout(res._timeout),
-	_fs(), _dir(res._dir), _dpath(res._dpath),
-	_ready(res._ready), _done(res._done),
-	_req_fd(res._req_fd), _boundary(res._boundary)
-{}
+Response::Response(Response const &res)
+{
+	*this = res;
+}
 
 Response &Response::operator= (Response const &res)
 {
@@ -37,16 +32,20 @@ Response &Response::operator= (Response const &res)
 	_loc = res._loc;
 
 	_pid = res._pid;
-	_fd = res._fd;
-
+	if (res._fd > -1)
+		_fd = dup(res._fd);
 	_timeout = res._timeout;
+
+	if (res._fs.is_open())
+		_fs.open(_body.c_str(), std::ios_base::out | std::ios_base::binary);
 	_dir = res._dir;
 	_dpath = res._dpath;
 
 	_ready = res._ready;
 	_done = res._done;
 
-	_req_fd = res._req_fd;
+	if (res._req_fd > -1)
+		_req_fd = dup(res._req_fd);
 	_boundary = res._boundary;
 
 	return *this;
@@ -57,9 +56,33 @@ Response::~Response()
 	_statusMsg.clear();
 	_headers.clear();
 	_body.clear();
+
 	// _req.~Request();
 	// _srv.~ServerCnf();
 	// _loc.~Location();
+
+	_pid = -1;
+	if (_fd > -1)
+	{
+		close(_fd);
+		_fd = -1;
+	}
+	_timeout = 0;
+
+	_fs.close();
+	if (_dir)
+	{
+		closedir(_dir);
+		_dir = NULL;
+	}
+	_dpath.clear();
+
+	if (_req_fd > -1)
+	{
+		close(_req_fd);
+		_req_fd = -1;
+	}
+	_boundary.clear();
 }
 
 bool Response::build(Request const &req, std::vector<ServerCnf> const &serv_cnfs,
@@ -70,7 +93,7 @@ bool Response::build(Request const &req, std::vector<ServerCnf> const &serv_cnfs
 	if (_dir) return _readDir();
 	if (_req_fd > 0) return _parseBody();
 	_req = req;
-	_srv = serv_cnfs[_getValidServerCnf(serv_cnfs, addr)];
+	_srv = serv_cnfs[_getValidServerCnf(serv_cnfs, addr)]; // get ot from request
 	_loc = _srv.locs[_getValidLocation(_srv.locs)];
 	return build(_statusCode);
 }
@@ -263,10 +286,9 @@ bool Response::_dirListing()
 {
 	struct timeval	tv;
 
-	std::cout << "dir listing" << std::endl;
 	gettimeofday(&tv, NULL);
 	_body = "/tmp/dirlist_" + utostr(tv.tv_sec*1e6 + tv.tv_usec) + ".html";
-	_fs.open(_body.c_str(), std::ios_base::out);
+	_fs.open(_body.c_str(), std::ios_base::out | std::ios_base::binary);
 	_fs << "<html>\n\
 <head><title>Index of "+_req.path+"</title></head>\n\
 <body>\n\
@@ -299,6 +321,7 @@ bool Response::_readDir()
 	}
 	_fs << "</pre><hr></body>\n</html>";
 	closedir(_dir);
+	_dir = NULL;
 	_fs.close();
 	_fd = open(_body.c_str(), O_RDONLY);
 	_statusCode = 200;

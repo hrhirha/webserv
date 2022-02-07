@@ -66,10 +66,12 @@ class Response
 	
 	private:
 		static std::string	_httpVersion;
+
 		int					_statusCode;
 		std::string			_statusMsg;
 		Headers				_headers;
 		std::string			_body;
+
 		Request				_req;
 		ServerCnf			_srv;
 		Location			_loc;
