@@ -273,7 +273,6 @@ void Response::_internalRedir(std::string &fpath)
 	std::string tmp = _req.path;
 	_req.path = new_rpath;
 	Location nloc = _srv.locs[_getValidLocation(_srv.locs)];
-	// std::cout << "loc: " << nloc.path << "\n";
 	fpath += _loc.index.size() ? _loc.index : "index.html";
 	if (_loc.path != nloc.path)
 		fpath = nloc.root + _req.path + (_req.path[_req.path.size()-1] == '/' ? (nloc.index.size() ? nloc.index : "index.html") : "");

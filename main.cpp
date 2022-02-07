@@ -67,10 +67,10 @@ int main()
 
 	// Request
 	hs.insert(std::make_pair("Host", "localhost"));
-	hs.insert(std::make_pair("Content-Type", "multipart/form-data; boundary=---------------------------144761614340942986943850864353"));
+	// hs.insert(std::make_pair("Content-Type", "multipart/form-data; boundary=---------------------------144761614340942986943850864353"));
 	// hs.insert(std::make_pair("Content-Type", "application/x-www-form-urlencoded"));
 	// hs.insert(std::make_pair("Content-Length", "403")); // body_upload.txt
-	hs.insert(std::make_pair("Content-Length", "308")); // multipart_body.txt
+	// hs.insert(std::make_pair("Content-Length", "308")); // multipart_body.txt
 	// hs.insert(std::make_pair("Content-Length", "34")); // xwww_body.txt
 	Request req = {"GET", "/", "", "HTTP/1.1", hs, ""};
 
@@ -79,13 +79,6 @@ int main()
 	addr.sin_port = htons(8000);
 	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	//////////
-
-	{
-		Response res1;
-		res1.build(req, srvs, addr);
-
-		res = res1;
-	}
 
 	std::cout << "--------------------------------------------------------------\n";
 	while (1)
