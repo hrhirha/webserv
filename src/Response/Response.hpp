@@ -11,9 +11,9 @@
 # include <cstring>
 # include <climits>
 # include <csignal>
-# include <strings.h>
+# include <cerrno>
+// # include <strings.h>
 # include <fcntl.h>
-# include <errno.h>
 # include <unistd.h>
 # include <dirent.h>
 # include <sys/stat.h>
@@ -156,6 +156,5 @@ Headers		strToHeaders(char *);
 std::string	getHyperlinkTag(std::string&, struct stat&);
 
 void		freePtr(char **);
-
 
 #endif

@@ -499,7 +499,7 @@ char **Response::_getCGIEnv(std::string const &fpath)
 	v.push_back("SERVER_PROTOCOL=HTTP/1.1");
 	v.push_back("DOCUMENT_ROOT=" + _loc.root);
 	v.push_back("DOCUMENT_URI=" + fpath.substr(_loc.root.size()));
-	v.push_back("REQUEST_URI=" + _req.path + "?" +_req.query);
+	v.push_back("REQUEST_URI=" + _req.path + (_req.query.empty() ? "" : ("?" +_req.query)));
 	v.push_back("SCRIPT_NAME=" + fpath.substr(_loc.root.size()));
 	v.push_back("CONTENT_LENGTH=" + _req.headers["Content-Length"]);
 	v.push_back("CONTENT_TYPE=" + _req.headers["Content-Type"]);

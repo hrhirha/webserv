@@ -67,9 +67,12 @@ int main()
 
 	// Request
 	hs.insert(std::make_pair("Host", "localhost"));
-	// hs.insert(std::make_pair("Content-Type", "multipart/form-data; boundary=---------------------------144761614340942986943850864353"));
-	// hs.insert(std::make_pair("Content-Length", "403"));
-	Request req = {"GET", "/hello.php", "", "HTTP/1.1", hs, ""};
+	hs.insert(std::make_pair("Content-Type", "multipart/form-data; boundary=---------------------------144761614340942986943850864353"));
+	// hs.insert(std::make_pair("Content-Type", "application/x-www-form-urlencoded"));
+	// hs.insert(std::make_pair("Content-Length", "403")); // body_upload.txt
+	hs.insert(std::make_pair("Content-Length", "308")); // multipart_body.txt
+	// hs.insert(std::make_pair("Content-Length", "34")); // xwww_body.txt
+	Request req = {"POST", "/hello.php", "name=Hamza", "HTTP/1.1", hs, "www/multipart_body.txt"};
 
 	bzero(&addr, sizeof(addr));
 	addr.sin_family = AF_INET;
