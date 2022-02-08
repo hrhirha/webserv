@@ -649,9 +649,12 @@ bool Response::_isCGI(std::string const &path)
 // Redirection
 bool Response::_resRedir(size_t code, size_t port, std::string redir)
 {
-	_resGenerate(code);
 	if (code < 301 || (code > 303 && code != 307 && code != 308))
+	{
+		_resGenerate(code, redir);
 		return true;
+	}
+	_resGenerate(code);
 	if (redir[0] != '/')
 	{
 		_headers["Location"] = redir;
@@ -665,10 +668,11 @@ bool Response::_resRedir(size_t code, size_t port, std::string redir)
 }
 
 // Response Generation
-bool Response::_resGenerate(size_t code)
+bool Response::_resGenerate(size_t code, std::string redir)
 {
 	struct timeval	tv;
 	std::fstream	fs;
+	std::string		sr("");
 
 	_statusCode = code;
 	_statusMsg = statusMessage(code);
@@ -676,10 +680,10 @@ bool Response::_resGenerate(size_t code)
 	gettimeofday(&tv, NULL);
 	_body = "/tmp/" + utostr(code) + "_" + utostr(tv.tv_sec*1e6 + tv.tv_usec) + ".html";
 	fs.open(_body.c_str(), std::ios_base::out | std::ios_base::binary);
-	std::string sr = specRes(code);
+	sr = redir.empty() ? specRes(code) : redir;
 	fs << sr;
 	fs.close();
-	_headers["Content-Type"] = "text/html";
+	if (redir.empty()) _headers["Content-Type"] = "text/html";
 	_headers["Content-Length"] = utostr(sr.size());
 	_headers["Date"] = timeToStr(time(NULL));
 	_fd = open(_body.c_str(), O_RDONLY);

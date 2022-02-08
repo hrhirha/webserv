@@ -34,11 +34,27 @@ std::string	specRes(size_t n)
 <hr><center>webserv/1.0</center>\r\n\
 </body>\r\n\
 </html>\r\n";
+	
+	sr[303]= "<html>\r\n\
+<head><title>303 See Other</title></head>\r\n\
+<body>\r\n\
+<center><h1>303 See Other</h1></center>\r\n\
+<hr><center>webserv/1.0</center>\r\n\
+</body>\r\n\
+</html>\r\n";
 
 	sr[307]= "<html>\r\n\
 <head><title>307 Temporary Redirect</title></head>\r\n\
 <body>\r\n\
 <center><h1>307 Temporary Redirect</h1></center>\r\n\
+<hr><center>webserv/1.0</center>\r\n\
+</body>\r\n\
+</html>\r\n";
+
+	sr[308]= "<html>\r\n\
+<head><title>308 Permanent Redirect</title></head>\r\n\
+<body>\r\n\
+<center><h1>308 Permanent Redirect</h1></center>\r\n\
 <hr><center>webserv/1.0</center>\r\n\
 </body>\r\n\
 </html>\r\n";

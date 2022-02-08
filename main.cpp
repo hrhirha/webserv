@@ -50,7 +50,7 @@ int main()
 	// ls.push_back(newLocation("/dir0/index.html", vs(), std::make_pair(0,""), html, "", false));
 	ls.push_back(newLocation("/dir0/", vs(), std::make_pair(0,""), html, "", true));
 	ls.push_back(newLocation("/uploads/", vs(1, "POST"), std::make_pair(0,""), html, "", false));
-	ls.push_back(newLocation("/dir0/dir00/", vs(), std::make_pair(307,"https://google.com"), html, "index.html", false));
+	ls.push_back(newLocation("/dir0/dir00/", vs(), std::make_pair(400,"/google.com"), html, "index.html", false));
 	ls.push_back(newLocation(".php", vs(), std::make_pair(0,""), html, "", false));
 	sns.push_back("localhost");
 	srvs.push_back(newServer("127.0.0.1", 8000, sns, ls));

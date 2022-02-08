@@ -133,7 +133,7 @@ class Response
 
 		bool	_resRedir(size_t, size_t, std::string);
 		
-		bool	_resGenerate(size_t);
+		bool	_resGenerate(size_t, std::string="");
 		bool	_resGenerate(size_t, size_t);
 		bool	_resGenerate(size_t, std::string, struct stat);
 
