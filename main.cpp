@@ -72,7 +72,7 @@ int main()
 	// hs.insert(std::make_pair("Content-Length", "403")); // body_upload.txt
 	// hs.insert(std::make_pair("Content-Length", "308")); // multipart_body.txt
 	// hs.insert(std::make_pair("Content-Length", "34")); // xwww_body.txt
-	Request req = {"GET", "/", "", "HTTP/1.1", hs, ""};
+	Request req = {"GET", "/dir0/dir00/", "", "HTTP/1.1", hs, ""};
 
 	bzero(&addr, sizeof(addr));
 	addr.sin_family = AF_INET;
@@ -92,6 +92,33 @@ int main()
 		usleep(1e3);
 	}
 	std::cout << "--------------------------------------------------------------\n";
+
+	// std::string path = html+"/./../dir0/cf.sh/../../dir1/.././././././././dir0/./././.";
+
+	// size_t pos;
+	// while ((pos = path.find("/./")) != std::string::npos)
+	// {
+	// 	path.replace(pos, 2, "");
+	// }
+	// size_t i = 0;
+	// while ((i = path.find("/../")) != std::string::npos)
+	// {
+	// 	std::string s1 = path.substr(0, i);
+	// 	std::string s2 = i+4 == path.size() ? "" : path.substr(i+4);
+	// 	path = (!s1.empty() ? s1.substr(0, s1.find_last_of("/")+1) : "/") + s2;
+	// }
+	// if ((pos = path.find("/.")) == path.size()-2)
+	// 	path.replace(pos, 2, "");
+	// i = path.find("/..");
+	// if (i == path.size()-3)
+	// {
+	// 	path = path.substr(0, i);
+	// 	path = path.substr(0, path.find_last_of("/")+1);
+	// }
+	// if (path.find(html) == std::string::npos)
+	// 	path = html+"/";
+	// std::cout << "path = " << path << "\n";
+
 
 	// for (int i = 3; i <= 1025; i++)
 	// {
