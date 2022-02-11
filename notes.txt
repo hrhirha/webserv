@@ -1,13 +1,4 @@
 struct sockaddr_in addr;
-
-
-
-
-asdklalskdhajkshdjkahsdkjhasjkdhaskjdh
-
-
-
-
 addr.sin_port
 addr.sin_addr.s_addr
 
