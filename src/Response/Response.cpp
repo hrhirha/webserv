@@ -85,16 +85,16 @@ Response::~Response()
 	_boundary.clear();
 }
 
-bool Response::build(Request const &req, std::vector<ServerCnf> const &serv_cnfs,
-	struct sockaddr_in const addr)
+bool Response::build(Request const &req)
 {
 	if (_ready) return true;
 	if (_pid >= 0) return _waitProc();
 	if (_dir) return _readDir();
 	if (_req_fd > 0) return _parseBody();
 	_req = req;
-	_srv = serv_cnfs[_getValidServerCnf(serv_cnfs, addr)]; // get ot from request
-	_loc = _srv.locs[_getValidLocation(_srv.locs)];
+	// _srv = serv_cnfs[_getValidServerCnf(serv_cnfs, addr)]; // get ot from request
+	_srv = _req.getServerBlock();
+	_loc = _srv.getlocs()[_getValidLocation(_srv.getlocs())];
 	return build(_statusCode);
 }
 
@@ -104,8 +104,8 @@ bool Response::build(size_t code)
 		return _resGenerate(code);
 	if (_checkLoc()) return true;
 
-	std::string fpath = _loc.root + _req.path;
-	return (this->*(_req_func(_req.method)))(_srv.port, fpath);
+	std::string fpath = _loc.getLocation_root() + _req.getpath();
+	return (this->*(_req_func(_req.getmethod())))(_srv.getPort(), fpath);
 }
 
 std::string Response::get()
@@ -191,7 +191,7 @@ bool Response::_handlePostRequest(size_t port, std::string fpath)
 	int			st_ret;
 
 	st_ret = stat(fpath.c_str(), &st);
-	if (_isCGI(_loc.path)) // Handle CGI
+	if (_isCGI(_loc.getPathOfLocation())) // Handle CGI
 		return _handleCGI(fpath);
 	if (!st_ret && S_ISDIR(st.st_mode)) // Handle directory
 		return _handlePostDir(fpath, st, port);
@@ -206,7 +206,7 @@ bool Response::_handleDeleteRequest(size_t port, std::string fpath)
 	(void)port;
 	(void)fpath;
 	st_ret = stat(fpath.c_str(), &st);
-	if (_isCGI(_loc.path))
+	if (_isCGI(_loc.getPathOfLocation()))
 		return _handleCGI(fpath);
 	return _resGenerate(405);
 }
@@ -214,7 +214,7 @@ bool Response::_handleDeleteRequest(size_t port, std::string fpath)
 // get Regular file
 bool Response::_handleRegFile(std::string fpath, struct stat st)
 {
-	if (_isCGI(_loc.path)) // Handle CGI
+	if (_isCGI(_loc.getPathOfLocation())) // Handle CGI
 		return _handleCGI(fpath);
 	errno = 0;
 	_fd = open(fpath.c_str(), O_RDONLY);
@@ -248,17 +248,17 @@ bool Response::_handleDir(std::string fpath, struct stat st, size_t port)
 {
 	if (_preHandleDir(fpath, port))
 		return true;
-	if (_isCGI(_loc.path))
+	if (_isCGI(_loc.getPathOfLocation()))
 		return _handleCGI(fpath);
 	// process regular file
 	bzero(&st, sizeof(struct stat));
-	if (!stat(fpath.c_str(), &st) && S_ISDIR(st.st_mode) && _loc.autoindex)
+	if (!stat(fpath.c_str(), &st) && S_ISDIR(st.st_mode) && _loc.getAutoIndex())
 		return _dirListing();
 	errno = 0;
 	_fd = open(fpath.c_str(), O_RDONLY);
 	if (_fd == -1)
 	{
-		if (_loc.autoindex && errno == ENOENT) return _dirListing();
+		if (_loc.getAutoIndex() && errno == ENOENT) return _dirListing();
 		return _resGenerate(errno == EMFILE ? 500 : 403);
 	}
 	return _resGenerate(200, fpath, st);
@@ -268,17 +268,21 @@ void Response::_internalRedir(std::string &fpath)
 {
 	std::string new_rpath;
 	
-	size_t idx = _loc.index.find_first_not_of("/");
-	new_rpath = _req.path + _loc.index.substr(idx!=std::string::npos ? idx : 0);
-	std::string tmp = _req.path;
-	_req.path = new_rpath;
-	Location nloc = _srv.locs[_getValidLocation(_srv.locs)];
-	fpath += _loc.index.size() ? _loc.index : "index.html";
-	if (_loc.path != nloc.path)
-		fpath = nloc.root + _req.path + (_req.path[_req.path.size()-1] == '/' ? (nloc.index.size() ? nloc.index : "index.html") : "");
+	size_t idx = _loc.getIndex().find_first_not_of("/");
+	new_rpath = _req.getpath() + _loc.getIndex().substr(idx!=std::string::npos ? idx : 0);
+	std::string tmp = _req.getpath();
+	_req.getpath() = new_rpath;
+	Location nloc = _srv.getlocs()[_getValidLocation(_srv.getlocs())];
+	fpath += _loc.getIndex().size() ? _loc.getIndex() : "index.html";
+	if (_loc.getPathOfLocation() != nloc.getPathOfLocation())
+	{
+		fpath = nloc.getLocation_root() + _req.getpath()
+			+ (_req.getpath()[_req.getpath().size()-1] == '/'
+			? (nloc.getIndex().size() ? nloc.getIndex() : "index.html") : "");
+	}
 	_loc = nloc;
 	_dpath = fpath.substr(0, fpath.find_last_of("/")+1);
-	_req.path = tmp;
+	_req.getpath() = tmp;
 }
 
 bool Response::_dirListing()
@@ -289,9 +293,9 @@ bool Response::_dirListing()
 	_body = "/tmp/dirlist_" + utostr(tv.tv_sec*1e6 + tv.tv_usec) + ".html";
 	_fs.open(_body.c_str(), std::ios_base::out | std::ios_base::binary);
 	_fs << "<html>\n\
-<head><title>Index of "+_req.path+"</title></head>\n\
+<head><title>Index of "+ _req.getpath() +"</title></head>\n\
 <body>\n\
-<h1>Index of "+_req.path+"</h1><hr><pre><a href=\"../\">../</a>\n";
+<h1>Index of "+ _req.getpath() +"</h1><hr><pre><a href=\"../\">../</a>\n";
 	if (!(_dir = opendir(_dpath.c_str())))
 	{
 		return _resGenerate(500);
@@ -339,9 +343,9 @@ bool Response::_handlePostDir(std::string fpath, struct stat st, size_t port)
 	if (_preHandleDir(fpath, port))
 		return true;
 	// _loc.upload_path = "/uploads/"; // to be removed
-	if (!_loc.upload_path.empty())
+	if (!_loc.getUpload_path().empty())
 		return _handleUpload();
-	if (_isCGI(_loc.path))
+	if (_isCGI(_loc.getPathOfLocation()))
 		return _handleCGI(fpath);	
 	bzero(&st, sizeof(struct stat));
 	if (!stat(fpath.c_str(), &st) && S_ISDIR(st.st_mode))
@@ -357,13 +361,13 @@ bool Response::_handlePostDir(std::string fpath, struct stat st, size_t port)
 bool Response::_handleUpload()
 {
 	std::string multipart = "multipart/form-data";
-	std::string ct = _req.headers["Content-Type"];
+	std::string ct = _req.getheaders()["Content-Type"];
 
 	if (ct.substr(0, multipart.size()) == multipart)
 	{
 		size_t i = ct.find("boundary=");
 		_boundary = i != std::string::npos ? ct.substr(i+9) : "";
-		_req_fd = open(_req.body.c_str(), O_RDONLY);
+		_req_fd = open(_req.getbody().c_str(), O_RDONLY);
 		if (_req_fd == -1)
 			return _resGenerate(errno == EMFILE ? 500 : 200);
 		return _parseBody();
@@ -443,7 +447,8 @@ void	Response::_moveUploadedFile(Headers &th)
 	{
 		filename = filename.substr(is_file+10);
 		filename = filename.substr(0, filename.size()-1);
-		std::string cmd = "cp " + _body + " " + _loc.root + _loc.upload_path + (_loc.upload_path[_loc.upload_path.size()-1] != '/' ? "/" : "") + filename;
+		std::string cmd = "cp " + _body + " " + _loc.getLocation_root() + _loc.getUpload_path()
+			+ (_loc.getUpload_path()[_loc.getUpload_path().size()-1] != '/' ? "/" : "") + filename;
 		system(cmd.c_str());
 	}
 	remove(_body.c_str());
@@ -459,7 +464,7 @@ bool Response::_handleCGI(std::string fpath)
 	char			**env;
 
 	// _loc.cgi_path = "/usr/bin/php-cgi"; // to be removed
-	_loc.cgi_path = "/Users/hrhirha/goinfre/.brew/bin/php-cgi"; // to be removed
+	// _loc.cgi_path = "/Users/hrhirha/goinfre/.brew/bin/php-cgi"; // to be removed
 	args = _getCGIArgs(fpath);
 	env = _getCGIEnv(fpath);
 
@@ -472,9 +477,9 @@ bool Response::_handleCGI(std::string fpath)
 	_timeout = tv.tv_sec;
 	if(!_pid)
 	{
-		if (!_req.body.empty())
+		if (!_req.getbody().empty())
 		{
-			int fd = open(_req.body.c_str(), O_RDONLY);
+			int fd = open(_req.getbody().c_str(), O_RDONLY);
 			if (fd == -1) _exit(1);
 			dup2(fd, 0);
 		}
@@ -494,7 +499,7 @@ char **Response::_getCGIArgs(std::string const &fpath)
 	(void)fpath;
 	std::vector<std::string> args;
 
-	args.push_back(std::string(_loc.cgi_path));
+	args.push_back(std::string(_loc.getPathCgi()));
 	return vectorToPtr(args);
 }
 
@@ -503,30 +508,30 @@ char **Response::_getCGIEnv(std::string const &fpath)
 	std::vector<std::string> v;
 	std::string			arg;
 
-	Headers::iterator f = _req.headers.begin();
-	Headers::iterator l = _req.headers.end();
+	Headers::iterator f = _req.getheaders().begin();
+	Headers::iterator l = _req.getheaders().end();
 	for (; f != l; f++)
 	{
 		v.push_back("HTTP_"+strtoupper(f->first)+"="+f->second);
 	}
 	v.push_back("REDIRECT_STATUS=200");
-	v.push_back("SERVER_NAME=" + _srv.server_names[0]);
-	v.push_back("SERVER_PORT=" + utostr(_srv.port));
-	v.push_back("SERVER_ADDR=" + _srv.host);
+	v.push_back("SERVER_NAME=" + _srv.getserver_names()[0]);
+	v.push_back("SERVER_PORT=" + utostr(_srv.getPort()));
+	v.push_back("SERVER_ADDR=" + _srv.getHost());
 	v.push_back("REMOTE_PORT=");
 	v.push_back("REMOTE_ADDR=");
 	v.push_back("SERVER_SOFTWARE=webserv/1.0");
 	v.push_back("GATEWAY_INTERFACE=CGI/1.1");
 	v.push_back("REQUEST_SCHEME=http");
 	v.push_back("SERVER_PROTOCOL=HTTP/1.1");
-	v.push_back("DOCUMENT_ROOT=" + _loc.root);
-	v.push_back("DOCUMENT_URI=" + fpath.substr(_loc.root.size()));
-	v.push_back("REQUEST_URI=" + _req.path + (_req.query.empty() ? "" : ("?" +_req.query)));
-	v.push_back("SCRIPT_NAME=" + fpath.substr(_loc.root.size()));
-	v.push_back("CONTENT_LENGTH=" + _req.headers["Content-Length"]);
-	v.push_back("CONTENT_TYPE=" + _req.headers["Content-Type"]);
-	v.push_back("REQUEST_METHOD=" + _req.method);
-	v.push_back("QUERY_STRING=" + _req.query);
+	v.push_back("DOCUMENT_ROOT=" + _loc.getLocation_root());
+	v.push_back("DOCUMENT_URI=" + fpath.substr(_loc.getLocation_root().size()));
+	v.push_back("REQUEST_URI=" + _req.getpath() + (_req.getquery().empty() ? "" : ("?" +_req.getquery())));
+	v.push_back("SCRIPT_NAME=" + fpath.substr(_loc.getLocation_root().size()));
+	v.push_back("CONTENT_LENGTH=" + _req.getheaders()["Content-Length"]);
+	v.push_back("CONTENT_TYPE=" + _req.getheaders()["Content-Type"]);
+	v.push_back("REQUEST_METHOD=" + _req.getmethod());
+	v.push_back("QUERY_STRING=" + _req.getquery());
 	v.push_back("SCRIPT_FILENAME=" + fpath);
 	v.push_back("FCGI_ROLE=RESPONDER");
 
@@ -660,7 +665,7 @@ bool Response::_resRedir(size_t code, size_t port, std::string redir)
 		_headers["Location"] = redir;
 		return true;
 	}
-	std::string lh = _req.headers.find("Host")->second;
+	std::string lh = _req.getheaders().find("Host")->second;
 	size_t i = lh.find(':');
 	lh = (i == std::string::npos) ? lh : lh.substr(0, i);
 	_headers["Location"] = "http://" + lh + ":" + utostr(port) + redir;
@@ -693,10 +698,10 @@ bool Response::_resGenerate(size_t code, std::string redir)
 
 bool Response::_resGenerate(size_t code, size_t port)
 {
-	std::string lh = _req.headers.find("Host")->second;
+	std::string lh = _req.getheaders().find("Host")->second;
 	size_t i = lh.find(':');
 	lh = (i == std::string::npos) ? lh : lh.substr(0, i);
-	_headers["Location"] = "http://" + lh + ":" + utostr(port) + _req.path + "/";
+	_headers["Location"] = "http://" + lh + ":" + utostr(port) + _req.getpath() + "/";
 	return _resGenerate(code);
 }
 
@@ -717,67 +722,30 @@ bool Response::_resGenerate(size_t code, std::string fpath, struct stat st)
 	return true;
 }
 
-// Choosing Server Block and Location to use
-size_t Response::_getValidServerCnf(std::vector<ServerCnf> const &serv_cnfs,
-	struct sockaddr_in const addr)
-{
-	std::map<size_t, std::vector<std::string> > valid_cnf;
-	std::map<size_t, std::vector<std::string> >::iterator it;
-	std::map<std::string, std::string>::const_iterator h_it;
-
-	// find which server block to use based on addr.host, addr.port
-
-	for (size_t i = 0; i < serv_cnfs.size(); i++)
-	{
-		if (addr.sin_addr.s_addr == inet_addr(serv_cnfs[i].host.c_str()) && addr.sin_port == htons(serv_cnfs[i].port))
-			valid_cnf.insert(std::make_pair(i, serv_cnfs[i].server_names));
-	}
-	if (valid_cnf.size() == 1)
-		return valid_cnf.begin()->first;
-
-	// if multiple servers are listening on the same host:port
-	// check the "Host" header against server blocks' "server_names"
-
-	std::string host = "";
-	h_it = _req.headers.find("Host");
-	if (h_it == _req.headers.end() || h_it->second.find(' ') != std::string::npos)
-	{
-		// 400 Bad Request
-		_statusCode = 400;
-		return 0;
-	}
-	host = h_it->second;
-	size_t idx = host.find(":");
-	host = host.substr(0, idx != std::string::npos ? idx : host.size());
-	for (it = valid_cnf.begin(); it != valid_cnf.end(); it++)
-	{
-		if (std::find(it->second.begin(), it->second.end(), host) != it->second.end())
-			return it->first;
-	}
-	return 0;
-}
+// Choosing Location to use
 
 size_t Response::_getValidLocation(Locations const &locs)
 {
 	size_t j;
 	int loc_idx = -1;
-	if (_req.path[0] != '/') // _request path doesn't start with '/'
+	if (_req.getpath()[0] != '/') // _request path doesn't start with '/'
 	{
 		_statusCode = 400;
 		return 0;
 	}
-	j = _req.path.find_last_of('/');
-	std::string path = _req.path.substr(0, j + 1);
+	j = _req.getpath().find_last_of('/');
+	std::string path = _req.getpath().substr(0, j + 1);
 	for (size_t i = 0; i < locs.size(); i++)
 	{
-		std::string fname = _req.path.substr(j+1);
+		std::string fname = _req.getpath().substr(j+1);
 		size_t dot = fname.find_last_of(".");
 		std::string rext = (dot != std::string::npos) ? fname.substr(dot) : "";
-		std::string lpath = locs[i].path;
-		if ((rext == lpath) || _req.path == lpath)
+		std::string lpath = locs[i].getPathOfLocation();
+		if ((rext == lpath) || _req.getpath() == lpath)
 			return i;
-		if (path.size() >= locs[i].path.size() && locs[i].path == path.substr(0, locs[i].path.size())
-			&& (loc_idx == -1 || locs[i].path.size() > locs[loc_idx].path.size()))
+		if (path.size() >= locs[i].getPathOfLocation().size()
+			&& locs[i].getPathOfLocation() == path.substr(0, locs[i].getPathOfLocation().size())
+			&& (loc_idx == -1 || locs[i].getPathOfLocation().size() > locs[loc_idx].getPathOfLocation().size()))
 		{
 			loc_idx = i;
 		}
@@ -787,12 +755,12 @@ size_t Response::_getValidLocation(Locations const &locs)
 
 bool Response::_checkLoc()
 {
-	vs::iterator first = _loc.accepted_methods.begin();
-	vs::iterator last = _loc.accepted_methods.end();
-	if (_loc.accepted_methods.size() && std::find(first, last, _req.method) == last)
+	vs::iterator first = _loc.getAcceptedMethods().begin();
+	vs::iterator last = _loc.getAcceptedMethods().end();
+	if (_loc.getAcceptedMethods().size() && std::find(first, last, _req.getmethod()) == last)
 		return _resGenerate(403);
-	if (_loc.redirect.first)
-		return _resRedir(_loc.redirect.first, _srv.port, _loc.redirect.second);
+	if (_loc.getRedirect().first)
+		return _resRedir(_loc.getRedirect().first, _srv.getPort(), _loc.getRedirect().second);
 	return false;
 }
 

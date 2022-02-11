@@ -23,41 +23,43 @@
 # include <sys/select.h>
 # include <arpa/inet.h>
 
-typedef std::map<std::string, std::string>	Headers;
+# include "../Parsing/Request.hpp"	
+
+// typedef std::map<std::string, std::string>	Headers;
 typedef std::vector<std::string>			vs;
 
-struct Request
-{
-	std::string	method;
-	std::string	path;
-	std::string query;
-	std::string	version;
-	Headers		headers;
-	std::string	body;
-};
+// struct Request
+// {
+// 	std::string	method;
+// 	std::string	path;
+// 	std::string query;
+// 	std::string	version;
+// 	Headers		headers;
+// 	std::string	body;
+// };
 
-struct Location
-{
-	std::string						path;
-	vs								accepted_methods;
-	std::pair<size_t,std::string>	redirect;
-	std::string						root;
-	std::string						index;
-	bool							autoindex;
-	std::string						upload_path;
-	std::string						cgi_path;
-};
+// struct Location
+// {
+// 	std::string						path;
+// 	vs								accepted_methods;
+// 	std::pair<size_t,std::string>	redirect;
+// 	std::string						root;
+// 	std::string						index;
+// 	bool							autoindex;
+// 	std::string						upload_path;
+// 	std::string						cgi_path;
+// };
 
-typedef std::vector<Location>				Locations;
+// typedef std::vector<Location>				Locations;
 
-struct ServerCnf
-{
-	std::string					host;
-	size_t						port;
-	vs							server_names;
-	size_t						client_max_body_size;
-	Locations					locs;
-};
+// struct ServerCnf
+// {
+// 	std::string					host;
+// 	size_t						port;
+// 	vs							server_names;
+// 	size_t						client_max_body_size;
+// 	Locations					locs;
+// };
 
 class Response
 {
@@ -96,7 +98,7 @@ class Response
 		Response &operator= (Response const &);
 		~Response();
 
-		bool		build(Request const &, std::vector<ServerCnf> const &, struct sockaddr_in const);
+		bool		build(Request const &);
 		bool		build(size_t=0);
 		std::string get();
 		bool		done();

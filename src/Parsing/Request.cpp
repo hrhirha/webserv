@@ -91,7 +91,7 @@
 	{ _ServerBlock = _getValidServerCnf(srvs, addr); Parse(req); };
 
 // copy constructor 
-	Request::Request(Request &copy)
+	Request::Request(Request const &copy)
 	{ *this = copy; };
 
 // destructor 
@@ -99,7 +99,7 @@
 	{};
 
 // operator equal 
-	Request &Request::operator=(Request &copy)
+	Request &Request::operator=(Request const &copy)
 	{
 		this->_method	= copy._method;
 		this->_path		= copy._path;
