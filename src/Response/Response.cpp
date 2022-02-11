@@ -100,7 +100,7 @@ bool Response::build(Request const &req, std::vector<ServerCnf> const &serv_cnfs
 
 bool Response::build(size_t code)
 {
-	if (code != 0)
+	if (code != 0) // chaeck if there was an error while parsing
 		return _resGenerate(code);
 	if (_checkLoc()) return true;
 
