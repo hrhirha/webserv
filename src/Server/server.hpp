@@ -30,7 +30,7 @@ class Server
 {
 private:
     std::vector<Socket *> _sockets;
-    std::vector<size_t> _ports;
+    std::map<size_t, std::string> _ports;
     std::vector<ServerCnf> _servConf;
     fd_set _readSet;
     fd_set _writeSet;
@@ -41,16 +41,17 @@ public:
     Server() : _maxFd(-1) {}
     ~Server() { this->clean(); }
 
-    void setPorts(std::vector<size_t> &ports) { this->_ports = ports; }
+    void setPorts(std::map<size_t, std::string> &ports) { this->_ports = ports; }
     void setServConf(std::vector<ServerCnf> &servConf) { this->_servConf = servConf; }
 
     void startServSockets()
     {
         // create a server socket for each port
-        for (size_t i = 0; i < this->_ports.size(); i++)
+        for (std::map<size_t, std::string>::iterator it = this->_ports.begin(); it != this->_ports.end(); it++)
         {
             Socket *sock = new Socket(true);
-            sock->setPort(this->_ports[i]);
+            sock->setPort(it->first);
+            sock->setHost(it->second);
             this->_sockets.push_back(sock);
         }
 
@@ -155,9 +156,9 @@ public:
         if (size > 0)
         {
             std::string newStr = std::string(buff);
-            std::cout << newStr << std::endl;
             this->_clients[client->getSockFd()].req = Request(newStr, this->_servConf, client->getSockAddr());
-            // bool isComplete = this->_clients[client->getSockFd()].req.isRequestCompleted();
+            bool isComplete = this->_clients[client->getSockFd()].req.isRequestCompleted();
+            std::cout << isComplete << std::endl;
             if (true)
             {
                 deleteFromSet(client->getSockFd(), this->_readSet);

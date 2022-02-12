@@ -17,10 +17,10 @@ int entry(const std::string file)
     Server server;
     ServerCnf servConf(file);
     std::vector<ServerCnf> srvs = servConf.getServers();
-    std::set<size_t> tmp;
+    std::map<size_t, std::string> ports;
     for (size_t i = 0; i < srvs.size(); i++)
-        tmp.insert(srvs[i].getPort());
-    std::vector<size_t> ports(tmp.begin(), tmp.end());
+        ports.insert(std::make_pair(srvs[i].getPort(), srvs[i].getHost()));
+
     server.setPorts(ports);
     server.setServConf(srvs);
     server.startServSockets();

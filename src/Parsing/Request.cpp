@@ -182,14 +182,15 @@ void Request::Parse(std::string &req)
 	{
 		_requestCompleted = true;
 		_ServerBlock = (!_Error) ? _getValidServerCnf(_srvs, _addr) : _ServerBlock;
-		return ;
+		return;
 	}
 	// Body treatment
 	FillBody(req);
 	if (_requestCompleted || _Error)
 	{
 		_fstream.close();
-		_ServerBlock  = _getValidServerCnf(_srvs, _addr);
+		_ServerBlock = _getValidServerCnf(_srvs, _addr);
+		std::cout << _ServerBlock.getPort() << std::endl;
 		_Error = (!_Error && _ServerBlock.getclient_max_body_size() < _HowMuchShouldRead) ? BAD_REQUEST : _Error;
 		if (_Error)
 		{
@@ -198,7 +199,6 @@ void Request::Parse(std::string &req)
 			system(concat.c_str());
 		}
 		_requestCompleted = true;
-		
 	}
 };
 
