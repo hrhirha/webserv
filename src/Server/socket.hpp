@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   socket.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mlasrite <mlasrite@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ibouhiri <ibouhiri@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/11/20 14:27:13 by mlasrite          #+#    #+#             */
-/*   Updated: 2021/11/22 12:32:49 by mlasrite         ###   ########.fr       */
+/*   Updated: 2022/02/12 16:26:29 by ibouhiri         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -65,8 +65,9 @@ public:
     void m_close() const { close(this->_sockfd); }
     void setPort(int port) { this->_port = port; }
     void setHost(std::string host) { this->_host = host; }
-    struct sockaddr_in getSockAddr() { return this->_serv_addr; }
+    struct sockaddr_in &getSockAddr() { return this->_serv_addr; }
     void setSockFd(int fd) { this->_sockfd = fd; }
+    void setSockAddr(struct sockaddr_in servAddr) {this->_serv_addr = servAddr; }
     int getSockFd() const { return this->_sockfd; }
     int getPort() const { return this->_port; }
 };

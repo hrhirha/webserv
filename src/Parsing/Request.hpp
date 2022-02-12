@@ -6,7 +6,7 @@
 /*   By: ibouhiri <ibouhiri@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/12/21 09:24:34 by ibouhiri          #+#    #+#             */
-/*   Updated: 2022/02/12 13:46:23 by ibouhiri         ###   ########.fr       */
+/*   Updated: 2022/02/12 16:01:08 by ibouhiri         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,7 +40,7 @@ private:
 public:
 	// canonical form
 	Request();
-	Request(std::string &req, std::vector<ServerCnf> srvs, struct sockaddr_in addr);
+	Request(std::string &req, std::vector<ServerCnf> srvs, struct sockaddr_in &addr);
 	Request(Request const &copy);
 	Request &operator=(Request const &copy);
 	~Request(void);

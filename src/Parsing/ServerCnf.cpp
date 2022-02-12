@@ -6,20 +6,20 @@
 /*   By: ibouhiri <ibouhiri@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/01/04 12:16:11 by ibouhiri          #+#    #+#             */
-/*   Updated: 2022/02/12 14:16:02 by ibouhiri         ###   ########.fr       */
+/*   Updated: 2022/02/12 15:41:13 by ibouhiri         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "ServerCnf.hpp"
 
 /*			Constructor 			*/
-	ServerCnf::ServerCnf( void ) : _host(""), _port(0),
+	ServerCnf::ServerCnf( void ) : _host("0.0.0.0"), _port(80),
 		_client_max_body_size(-1), _fillSrvCompleted(false)
 	{};
 
 /*			Parameters Constructor 	*/
-	ServerCnf::ServerCnf( const std::string& file ) : _host(""), _port(0),
-		_client_max_body_size(0), _fillSrvCompleted(false)
+	ServerCnf::ServerCnf( const std::string& file ) : _host("0.0.0.0"), _port(80),
+		_client_max_body_size(-1), _fillSrvCompleted(false)
 	{
  		_ifs.open(file, std::ifstream::in);
 		if (_ifs.good())
@@ -93,6 +93,8 @@
 			fillServer(line, inst);
 			if (!inst._fillSrvCompleted)
 				continue;
+			if (inst._host == "localhost")
+				inst._host = "127.0.0.1";
 			_srvs.push_back(inst);
 			_fillSrvCompleted = false;
 		}

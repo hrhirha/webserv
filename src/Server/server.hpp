@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mlasrite <mlasrite@student.42.fr>          +#+  +:+       +#+        */
+/*   By: ibouhiri <ibouhiri@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/11/19 18:28:22 by mlasrite          #+#    #+#             */
-/*   Updated: 2021/11/22 12:49:13 by mlasrite         ###   ########.fr       */
+/*   Updated: 2022/02/12 16:33:18 by ibouhiri         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -115,12 +115,13 @@ public:
 
     void acceptNewClient(Socket *sock)
     {
-        std::cout << "New Client appeared on port: " << sock->getPort() << "\n";
+        std::cout << "New Client appeared on port: " << sock->getPort() << std::endl;
 
         // accept connection on server socket and get fd for new Client
         int newClient = accept(sock->getSockFd(), 0, 0);
         Socket *client = new Socket(false);
         client->setSockFd(newClient);
+        client->setSockAddr(sock->getSockAddr());
         Value val;
         this->_clients.insert(std::make_pair(newClient, val));
         this->_sockets.push_back(client);
@@ -133,7 +134,8 @@ public:
     {
         char buff[MAX_BUFFER_SIZE];
         bzero(buff, MAX_BUFFER_SIZE);
-        std::cout << "Handle Client: " << client->getSockFd() << " !\n";
+        std::cout << "Handle Client: " << std::endl;
+        exit(0);
 
         // receive data from client
         int size = recv(client->getSockFd(), buff, MAX_BUFFER_SIZE, 0);
@@ -156,6 +158,7 @@ public:
         if (size > 0)
         {
             std::string newStr = std::string(buff);
+            std::cout << "HRLLLOOBHI WGR WME W" << client->getSockAddr().sin_port << std::endl;
             this->_clients[client->getSockFd()].req = Request(newStr, this->_servConf, client->getSockAddr());
             bool isComplete = this->_clients[client->getSockFd()].req.isRequestCompleted();
             std::cout << isComplete << std::endl;
