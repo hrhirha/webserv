@@ -59,6 +59,7 @@ public:
     bool keepAlive() const { return this->_keepAlive; }
     void m_close() const { close(this->_sockfd); }
     void setPort(int port) { this->_port = port; }
+    struct sockaddr_in getSockAddr() { return this->_serv_addr; }
     void setSockFd(int fd) { this->_sockfd = fd; }
     int getSockFd() const { return this->_sockfd; }
     int getPort() const { return this->_port; }

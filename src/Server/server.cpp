@@ -11,19 +11,6 @@
 /* ************************************************************************** */
 
 #include "server.hpp"
-#include "../Response/Response.hpp"
-#include <set>
-
-// class Value
-// {
-// private:
-//     // Request
-//     // Response
-//     // Addr
-// public:
-//     Value() {}
-//     ~Value() {}
-// };
 
 int entry(const std::string file)
 {
@@ -35,14 +22,12 @@ int entry(const std::string file)
         tmp.insert(srvs[i].getPort());
     std::vector<size_t> ports(tmp.begin(), tmp.end());
     server.setPorts(ports);
+    server.setServConf(srvs);
     server.startServSockets();
     server.fillSockSet();
-    while (1)
-    {
-        server.performSelect();
-    }
-    server.clean();
 
-    system("leaks Webserv");
+    while (1)
+        server.performSelect();
+    server.clean();
     return 0;
 }

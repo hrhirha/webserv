@@ -97,7 +97,7 @@ Request::Request(std::string &req, std::vector<ServerCnf> srvs, struct sockaddr_
 																						   _version(""), _body(""), _RequestCompleted(false), _HeadersCompleted(false),
 																						   _Error(0), _BodySize(0), _HowMuchShouldRead(0)
 {
-	_ServerBlock = _getValidServerCnf(srvs, addr);
+	// _ServerBlock = _getValidServerCnf(srvs, addr);
 	Parse(req);
 };
 
@@ -119,6 +119,7 @@ Request &Request::operator=(Request const &copy)
 	this->_version = copy._version;
 	this->_body = copy._body;
 	this->_headers = copy._headers;
+	this->_RequestCompleted = copy._RequestCompleted;
 
 	return *this;
 };
@@ -131,6 +132,7 @@ std::string &Request::getversion(void) { return this->_version; };
 std::string &Request::getbody(void) { return this->_body; };
 Headers &Request::getheaders(void) { return this->_headers; };
 ServerCnf &Request::getServerBlock(void) { return this->_ServerBlock; };
+bool Request::isRequestCompleted(void) { return this->_RequestCompleted; };
 
 // print content method
 void Request::print(void)
@@ -165,6 +167,7 @@ void Request::Parse(std::string &req)
 {
 	req = _buffer.append(req);
 	size_t EndOfHeaders = req.find("\r\n\r\n");
+	std::cout <<  "h hhh " << _Error << std::endl;
 	if (!_HeadersCompleted && EndOfHeaders == std::string::npos)
 		return;
 	else if (!_HeadersCompleted && EndOfHeaders != std::string::npos)
@@ -257,7 +260,7 @@ void Request::FillBody(std::string &req)
 	}
 	else if (_headers.find("Transfer-Encoding") != _headers.end() && _headers["Transfer-Encoding"] == "chunked")
 		ChunkedRequest(req);
-	else
+	else 
 		_RequestCompleted = true;
 }
 
@@ -272,6 +275,7 @@ void Request::parseHeaders(std::string &req, size_t EndOfHeaders)
 	std::string key;
 
 	EndOfLine = req.find("\r\n");
+	std::cout << "h = " << EndOfHeaders << "Start = " << start << "Er " << _Error << std::endl;
 	while (EndOfHeaders > start && !_Error && EndOfLine != std::string::npos)
 	{
 		LineOfReq = req.substr(start, EndOfLine - start);

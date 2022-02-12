@@ -13,22 +13,36 @@
 #include "socket.hpp"
 #include <vector>
 #include <algorithm>
+#include "../Response/Response.hpp"
+#include <set>
 #define MAX_BUFFER_SIZE 1024 * 20
+
+class Value
+{
+public:
+    Request req;
+    Response res;
+    Value() {}
+    ~Value() {}
+};
 
 class Server
 {
 private:
     std::vector<Socket *> _sockets;
     std::vector<size_t> _ports;
+    std::vector<ServerCnf> _servConf;
     fd_set _readSet;
     fd_set _writeSet;
     int _maxFd;
+    std::map<int, Value> _clients;
 
 public:
     Server() : _maxFd(-1) {}
     ~Server() { this->clean(); }
 
     void setPorts(std::vector<size_t> &ports) { this->_ports = ports; }
+    void setServConf(std::vector<ServerCnf> &servConf) { this->_servConf = servConf; }
 
     void startServSockets()
     {
@@ -106,6 +120,8 @@ public:
         int newClient = accept(sock->getSockFd(), 0, 0);
         Socket *client = new Socket(false);
         client->setSockFd(newClient);
+        Value val;
+        this->_clients.insert(std::make_pair(newClient, val));
         this->_sockets.push_back(client);
 
         // add our client to read set
@@ -115,7 +131,7 @@ public:
     void handleClient(Socket *client)
     {
         char buff[MAX_BUFFER_SIZE];
-
+        bzero(buff, MAX_BUFFER_SIZE);
         std::cout << "Handle Client: " << client->getSockFd() << " !\n";
 
         // receive data from client
@@ -138,8 +154,11 @@ public:
         // send to parser and check return value if reading is complete
         if (size > 0)
         {
-            bool isComplete = true;
-            if (isComplete)
+            std::string newStr = std::string(buff);
+            std::cout << newStr << std::endl;
+            this->_clients[client->getSockFd()].req = Request(newStr, this->_servConf, client->getSockAddr());
+            // bool isComplete = this->_clients[client->getSockFd()].req.isRequestCompleted();
+            if (true)
             {
                 deleteFromSet(client->getSockFd(), this->_readSet);
                 addToSet(client->getSockFd(), this->_writeSet);
