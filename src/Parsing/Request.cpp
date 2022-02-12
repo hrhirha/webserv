@@ -6,7 +6,7 @@
 /*   By: ibouhiri <ibouhiri@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/12/21 09:37:15 by ibouhiri          #+#    #+#             */
-/*   Updated: 2022/02/12 16:06:23 by ibouhiri         ###   ########.fr       */
+/*   Updated: 2022/02/12 16:35:58 by ibouhiri         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -159,7 +159,7 @@ std::string Request::generateNameFile(void)
 
 	gettimeofday(&time_now, 0);
 	time_t msecs_time = time_now.tv_usec + (time_now.tv_sec * 1e6);
-	ss << "File[";
+	ss << "/tmp/File[";
 	ss << msecs_time;
 	ss << "]";
 	return ss.str();

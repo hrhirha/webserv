@@ -6,7 +6,7 @@
 /*   By: ibouhiri <ibouhiri@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/11/19 18:28:22 by mlasrite          #+#    #+#             */
-/*   Updated: 2022/02/12 16:33:18 by ibouhiri         ###   ########.fr       */
+/*   Updated: 2022/02/12 16:37:00 by ibouhiri         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -135,7 +135,6 @@ public:
         char buff[MAX_BUFFER_SIZE];
         bzero(buff, MAX_BUFFER_SIZE);
         std::cout << "Handle Client: " << std::endl;
-        exit(0);
 
         // receive data from client
         int size = recv(client->getSockFd(), buff, MAX_BUFFER_SIZE, 0);
