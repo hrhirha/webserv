@@ -6,7 +6,7 @@
 /*   By: ibouhiri <ibouhiri@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/12/21 09:24:34 by ibouhiri          #+#    #+#             */
-/*   Updated: 2022/02/11 18:05:49 by ibouhiri         ###   ########.fr       */
+/*   Updated: 2022/02/12 13:46:23 by ibouhiri         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,6 +20,8 @@ typedef std::map<std::string, std::string> Headers;
 class Request
 {
 private:
+	std::vector<ServerCnf> _srvs;
+	struct sockaddr_in _addr;
 	ServerCnf _ServerBlock;
 	std::string _buffer;
 	std::string _method;
@@ -28,8 +30,8 @@ private:
 	std::string _version;
 	Headers _headers;
 	std::string _body;
-	bool _RequestCompleted;
-	bool _HeadersCompleted;
+	bool _requestCompleted;
+	bool _headersCompleted;
 	size_t _Error;
 	size_t _BodySize;
 	size_t _HowMuchShouldRead;

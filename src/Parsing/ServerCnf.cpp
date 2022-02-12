@@ -6,7 +6,7 @@
 /*   By: ibouhiri <ibouhiri@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/01/04 12:16:11 by ibouhiri          #+#    #+#             */
-/*   Updated: 2022/02/08 13:02:11 by ibouhiri         ###   ########.fr       */
+/*   Updated: 2022/02/12 14:16:02 by ibouhiri         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,7 +14,7 @@
 
 /*			Constructor 			*/
 	ServerCnf::ServerCnf( void ) : _host(""), _port(0),
-		_client_max_body_size(0), _fillSrvCompleted(false)
+		_client_max_body_size(-1), _fillSrvCompleted(false)
 	{};
 
 /*			Parameters Constructor 	*/

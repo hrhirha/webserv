@@ -6,7 +6,7 @@
 /*   By: ibouhiri <ibouhiri@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/12/21 09:37:15 by ibouhiri          #+#    #+#             */
-/*   Updated: 2022/02/11 18:06:43 by ibouhiri         ###   ########.fr       */
+/*   Updated: 2022/02/12 14:15:17 by ibouhiri         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -92,12 +92,11 @@ int convert(char num[])
 
 Request::Request() {}
 
-//default constructor
-Request::Request(std::string &req, std::vector<ServerCnf> srvs, struct sockaddr_in addr) : _method(""), _path(""), _query(""),
-																						   _version(""), _body(""), _RequestCompleted(false), _HeadersCompleted(false),
+// default constructor
+Request::Request(std::string &req, std::vector<ServerCnf> srvs, struct sockaddr_in addr) : _srvs(srvs), _addr(addr), _method(""), _path(""), _query(""),
+																						   _version(""), _body(""), _requestCompleted(false), _headersCompleted(false),
 																						   _Error(0), _BodySize(0), _HowMuchShouldRead(0)
 {
-	// _ServerBlock = _getValidServerCnf(srvs, addr);
 	Parse(req);
 };
 
@@ -113,13 +112,17 @@ Request::~Request(void){};
 // operator equal
 Request &Request::operator=(Request const &copy)
 {
+	this->_ServerBlock = copy._ServerBlock;
+	this->_addr = copy._addr;
+	this->_srvs = copy._srvs;
+	this->_Error = copy._Error;
 	this->_method = copy._method;
 	this->_path = copy._path;
 	this->_query = copy._query;
 	this->_version = copy._version;
 	this->_body = copy._body;
 	this->_headers = copy._headers;
-	this->_RequestCompleted = copy._RequestCompleted;
+	this->_requestCompleted = copy._requestCompleted;
 
 	return *this;
 };
@@ -132,7 +135,7 @@ std::string &Request::getversion(void) { return this->_version; };
 std::string &Request::getbody(void) { return this->_body; };
 Headers &Request::getheaders(void) { return this->_headers; };
 ServerCnf &Request::getServerBlock(void) { return this->_ServerBlock; };
-bool Request::isRequestCompleted(void) { return this->_RequestCompleted; };
+bool Request::isRequestCompleted(void) { return this->_requestCompleted; };
 
 // print content method
 void Request::print(void)
@@ -140,7 +143,7 @@ void Request::print(void)
 	Headers::iterator beg = _headers.begin();
 	Headers::iterator end = _headers.end();
 
-	std::cout << "Request is completed : [" << _RequestCompleted << "]." << std::endl;
+	std::cout << "Request is completed : [" << _requestCompleted << "]." << std::endl;
 	std::cout << "Body Size : [" << _BodySize << "]." << std::endl;
 	std::cout << "error found = [" << _Error << "]" << std::endl;
 	std::cout << "_method = [" << _method << "] | _path = [" << _path << "]  | query = [" << _query << "] | version = [" << _version << "] . " << std::endl;
@@ -167,32 +170,35 @@ void Request::Parse(std::string &req)
 {
 	req = _buffer.append(req);
 	size_t EndOfHeaders = req.find("\r\n\r\n");
-	std::cout <<  "h hhh " << _Error << std::endl;
-	if (!_HeadersCompleted && EndOfHeaders == std::string::npos)
+	if (!_headersCompleted && EndOfHeaders == std::string::npos)
 		return;
-	else if (!_HeadersCompleted && EndOfHeaders != std::string::npos)
+	else if (!_headersCompleted && EndOfHeaders != std::string::npos)
 	{
 		parseHeaders(req, EndOfHeaders);
 		req = _buffer;
 		_buffer = "";
 	}
-	else if ((_HeadersCompleted && _method == "GET") || _Error)
+	if ((_headersCompleted && _method == "GET") || _Error)
 	{
-		_RequestCompleted = true;
-		return;
+		_requestCompleted = true;
+		_ServerBlock = (!_Error) ? _getValidServerCnf(_srvs, _addr) : _ServerBlock;
+		return ;
 	}
 	// Body treatment
 	FillBody(req);
-	if (_RequestCompleted || _Error)
+	if (_requestCompleted || _Error)
 	{
 		_fstream.close();
+		_ServerBlock  = _getValidServerCnf(_srvs, _addr);
+		_Error = (!_Error && _ServerBlock.getclient_max_body_size() < _HowMuchShouldRead) ? BAD_REQUEST : _Error;
 		if (_Error)
 		{
+			std::cout << "hereeee" << std::endl;
 			std::string concat = "rm " + _body;
 			system(concat.c_str());
 		}
-		_RequestCompleted = true;
-		print();
+		_requestCompleted = true;
+		
 	}
 };
 
@@ -224,7 +230,7 @@ void Request::ChunkedRequest(std::string &req)
 		_HowMuchShouldRead = convert(const_cast<char *>(req.substr(0, found).c_str()));
 		if (!_HowMuchShouldRead)
 		{
-			_RequestCompleted = true;
+			_requestCompleted = true;
 			return;
 		}
 		req = req.substr(found + 2);
@@ -252,16 +258,16 @@ void Request::FillBody(std::string &req)
 	if (_headers.find("Content-Length") != _headers.end())
 	{
 		_buffer = "";
-		size_t sizeT = to_sizeT(_headers.find("Content-Length")->second);
+		_HowMuchShouldRead = to_sizeT(_headers.find("Content-Length")->second);
 		_BodySize += req.size();
 		_fstream << req;
-		_RequestCompleted = (sizeT == _BodySize) ? true : _RequestCompleted;
-		_Error = (sizeT < _BodySize) ? BAD_REQUEST : _Error;
+		_requestCompleted = (_HowMuchShouldRead == _BodySize) ? true : _requestCompleted;
+		_Error = (_HowMuchShouldRead < _BodySize) ? BAD_REQUEST : _Error;
 	}
 	else if (_headers.find("Transfer-Encoding") != _headers.end() && _headers["Transfer-Encoding"] == "chunked")
 		ChunkedRequest(req);
-	else 
-		_RequestCompleted = true;
+	else
+		_requestCompleted = true;
 }
 
 // fonction to parse all headers
@@ -275,7 +281,6 @@ void Request::parseHeaders(std::string &req, size_t EndOfHeaders)
 	std::string key;
 
 	EndOfLine = req.find("\r\n");
-	std::cout << "h = " << EndOfHeaders << "Start = " << start << "Er " << _Error << std::endl;
 	while (EndOfHeaders > start && !_Error && EndOfLine != std::string::npos)
 	{
 		LineOfReq = req.substr(start, EndOfLine - start);
@@ -296,17 +301,14 @@ void Request::parseHeaders(std::string &req, size_t EndOfHeaders)
 				_headers[key] = trim(LineOfReq.substr(find + 2));
 			}
 			else
-			{
-				std::cout << "line of req = " << LineOfReq << std::endl;
 				_Error = (!LineOfReq.empty()) ? BAD_REQUEST : _Error;
-			}
 		}
 		start = EndOfLine + 2;
 		EndOfLine = req.find("\r\n", EndOfLine + 2);
 	}
 	_buffer = _buffer.substr(EndOfHeaders + 4);
-	this->_RequestCompleted = this->_Error;
-	this->_HeadersCompleted = true;
+	this->_requestCompleted = this->_Error;
+	this->_headersCompleted = true;
 };
 
 void Request::FillFirstLineInfo(char *splitedLine)
