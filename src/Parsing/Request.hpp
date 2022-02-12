@@ -40,7 +40,7 @@ private:
 public:
 	// canonical form
 	Request();
-	Request(std::string &req, std::vector<ServerCnf> srvs, struct sockaddr_in &addr);
+	Request(std::string &req, std::vector<ServerCnf> srvs, struct sockaddr_in addr);
 	Request(Request const &copy);
 	Request &operator=(Request const &copy);
 	~Request(void);

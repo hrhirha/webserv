@@ -13,18 +13,9 @@
 #include "socket.hpp"
 #include <vector>
 #include <algorithm>
+#include <map>
 #include "../Response/Response.hpp"
-#include <set>
 #define MAX_BUFFER_SIZE 1024 * 20
-
-class Value
-{
-public:
-    Request req;
-    Response res;
-    Value() {}
-    ~Value() {}
-};
 
 class Server
 {
@@ -32,10 +23,11 @@ private:
     std::vector<Socket *> _sockets;
     std::map<size_t, std::string> _ports;
     std::vector<ServerCnf> _servConf;
+
     fd_set _readSet;
     fd_set _writeSet;
     int _maxFd;
-    std::map<int, Value> _clients;
+    std::map<int, std::pair<Request, Response> > _clients;
 
 public:
     Server() : _maxFd(-1) {}
@@ -101,10 +93,7 @@ public:
                 if (FD_ISSET(this->_sockets[i]->getSockFd(), &tmpReadSet))
                 {
                     if (this->_sockets[i]->isServSock())
-                    {
                         acceptNewClient(this->_sockets[i]);
-                        std::cout << "After new cLIENT" << std::endl;
-                    }
                     else
                         handleClient(this->_sockets[i]);
                 }
@@ -126,10 +115,9 @@ public:
         Socket *client = new Socket(false);
         client->setSockFd(newClient);
         client->setSockAddr(sock->getSockAddr());
-        // Value val;
-        // this->_clients.insert(std::make_pair(newClient, val));
-        dprintf(1, "hello there!\n");
-
+        Request req;
+        Response res;
+        this->_clients.insert(std::make_pair(newClient, std::make_pair(req, res)));
         this->_sockets.push_back(client);
 
         // add our client to read set
@@ -143,7 +131,9 @@ public:
         std::cout << "Handle Client: " << client->getSockFd() << std::endl;
 
         // receive data from client
-        int size = recv(client->getSockFd(), buff, MAX_BUFFER_SIZE, 0);
+        int size = recv(client->getSockFd(), buff, MAX_BUFFER_SIZE - 1, 0);
+
+        std::cout << " size -> " <<  size << std::endl;
 
         // if an error occured or when a stream socket peer has performed a shutdown.
         if (size == -1 || size == 0)
@@ -163,8 +153,8 @@ public:
         if (size > 0)
         {
             // std::string newStr = std::string(buff);
-            // std::cout << "SockAddress hemokhpre rhehr eh erh eh --->" << client->getSockAddr().sin_port << std::endl;
-            // this->_clients[client->getSockFd()].req = Request(newStr, this->_servConf, client->getSockAddr());
+            // Request req(newStr, this->_servConf, client->getSockAddr());
+            // this->_clients[client->getSockFd()].first = req;
             // bool isComplete = this->_clients[client->getSockFd()].req.isRequestCompleted();
             // std::cout << isComplete << std::endl;
             if (true)
@@ -222,4 +212,4 @@ public:
     }
 };
 
-int entry(const std::string file);
+int entry(std::string file);

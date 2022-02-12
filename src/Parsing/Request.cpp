@@ -90,10 +90,14 @@ int convert(char num[])
 	return temp;
 }
 
-Request::Request() {}
+Request::Request() : _method(""), _path(""), _query(""),
+					 _version(""), _body(""), _requestCompleted(false), _headersCompleted(false),
+					 _Error(0), _BodySize(0), _HowMuchShouldRead(0)
+{
+}
 
 // default constructor
-Request::Request(std::string &req, std::vector<ServerCnf> srvs, struct sockaddr_in &addr) : _srvs(srvs), _addr(addr), _method(""), _path(""), _query(""),
+Request::Request(std::string &req, std::vector<ServerCnf> srvs, struct sockaddr_in addr) : _srvs(srvs), _addr(addr), _method(""), _path(""), _query(""),
 																						   _version(""), _body(""), _requestCompleted(false), _headersCompleted(false),
 																						   _Error(0), _BodySize(0), _HowMuchShouldRead(0)
 {
@@ -182,6 +186,7 @@ void Request::Parse(std::string &req)
 	{
 		_requestCompleted = true;
 		_ServerBlock = (!_Error) ? _getValidServerCnf(_srvs, _addr) : _ServerBlock;
+		std::cout << "request built successefully\n";
 		return;
 	}
 	// Body treatment
@@ -198,6 +203,7 @@ void Request::Parse(std::string &req)
 			system(concat.c_str());
 		}
 		_requestCompleted = true;
+		std::cout << "request built successefully\n";
 	}
 };
 
@@ -349,12 +355,8 @@ ServerCnf Request::_getValidServerCnf(std::vector<ServerCnf> const &serv_cnfs, s
 
 	for (size_t i = 0; i < serv_cnfs.size(); i++)
 	{
-		// std::cout << "sin_port : " << addr.sin_port << " ||| htons(serv_cnfs[i].getPort()) : " << htons(serv_cnfs[i].getPort()) << std::endl;
 		if (addr.sin_addr.s_addr == inet_addr(serv_cnfs[i].getHost().c_str()) && addr.sin_port == htons(serv_cnfs[i].getPort()))
-		{
 			valid_cnf.insert(std::make_pair(i, serv_cnfs[i].getserver_names()));
-			std::cout << "herrrre" << std::endl;
-		}
 	}
 	if (valid_cnf.size() == 1)
 		return serv_cnfs[valid_cnf.begin()->first];
