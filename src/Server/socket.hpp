@@ -65,9 +65,21 @@ public:
     void m_close() const { close(this->_sockfd); }
     void setPort(int port) { this->_port = port; }
     void setHost(std::string host) { this->_host = host; }
-    struct sockaddr_in &getSockAddr() { return this->_serv_addr; }
-    void setSockFd(int fd) { this->_sockfd = fd; }
-    void setSockAddr(struct sockaddr_in servAddr) {this->_serv_addr = servAddr; }
+    struct sockaddr_in getSockAddr() { return this->_serv_addr; }
+    void setSockFd(int fd)
+    {
+        this->_sockfd = dup(fd);
+        close(fd);
+    }
+    void setSockAddr(struct sockaddr_in servAddr)
+    {
+        this->_serv_addr = servAddr;
+    }
+
+    void print()
+    {
+        std::cout << " print " << std::endl;
+    }
     int getSockFd() const { return this->_sockfd; }
     int getPort() const { return this->_port; }
 };

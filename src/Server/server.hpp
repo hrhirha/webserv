@@ -101,7 +101,10 @@ public:
                 if (FD_ISSET(this->_sockets[i]->getSockFd(), &tmpReadSet))
                 {
                     if (this->_sockets[i]->isServSock())
+                    {
                         acceptNewClient(this->_sockets[i]);
+                        std::cout << "After new cLIENT" << std::endl;
+                    }
                     else
                         handleClient(this->_sockets[i]);
                 }
@@ -119,11 +122,14 @@ public:
 
         // accept connection on server socket and get fd for new Client
         int newClient = accept(sock->getSockFd(), 0, 0);
+        // std::cout << newClient << std::endl;
         Socket *client = new Socket(false);
         client->setSockFd(newClient);
         client->setSockAddr(sock->getSockAddr());
-        Value val;
-        this->_clients.insert(std::make_pair(newClient, val));
+        // Value val;
+        // this->_clients.insert(std::make_pair(newClient, val));
+        dprintf(1, "hello there!\n");
+
         this->_sockets.push_back(client);
 
         // add our client to read set
@@ -134,7 +140,7 @@ public:
     {
         char buff[MAX_BUFFER_SIZE];
         bzero(buff, MAX_BUFFER_SIZE);
-        std::cout << "Handle Client: " << std::endl;
+        std::cout << "Handle Client: " << client->getSockFd() << std::endl;
 
         // receive data from client
         int size = recv(client->getSockFd(), buff, MAX_BUFFER_SIZE, 0);
@@ -156,11 +162,11 @@ public:
         // send to parser and check return value if reading is complete
         if (size > 0)
         {
-            std::string newStr = std::string(buff);
-            std::cout << "HRLLLOOBHI WGR WME W" << client->getSockAddr().sin_port << std::endl;
-            this->_clients[client->getSockFd()].req = Request(newStr, this->_servConf, client->getSockAddr());
-            bool isComplete = this->_clients[client->getSockFd()].req.isRequestCompleted();
-            std::cout << isComplete << std::endl;
+            // std::string newStr = std::string(buff);
+            // std::cout << "SockAddress hemokhpre rhehr eh erh eh --->" << client->getSockAddr().sin_port << std::endl;
+            // this->_clients[client->getSockFd()].req = Request(newStr, this->_servConf, client->getSockAddr());
+            // bool isComplete = this->_clients[client->getSockFd()].req.isRequestCompleted();
+            // std::cout << isComplete << std::endl;
             if (true)
             {
                 deleteFromSet(client->getSockFd(), this->_readSet);
