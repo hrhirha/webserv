@@ -10,6 +10,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 
+
 #include "Request.hpp"
 #include <unistd.h>
 // status code defines
@@ -90,19 +91,17 @@ int convert(char num[])
 	return temp;
 }
 
+Request::Request(std::vector<ServerCnf> srvs, struct sockaddr_in addr) : _srvs(srvs), _addr(addr), _method(""), _path(""), _query(""),
+																		 _version(""), _body(""), _requestCompleted(false), _headersCompleted(false),
+																		 _Error(0), _BodySize(0), _HowMuchShouldRead(0)
+{
+}
+
 Request::Request() : _method(""), _path(""), _query(""),
 					 _version(""), _body(""), _requestCompleted(false), _headersCompleted(false),
 					 _Error(0), _BodySize(0), _HowMuchShouldRead(0)
 {
 }
-
-// default constructor
-Request::Request(std::string &req, std::vector<ServerCnf> srvs, struct sockaddr_in addr) : _srvs(srvs), _addr(addr), _method(""), _path(""), _query(""),
-																						   _version(""), _body(""), _requestCompleted(false), _headersCompleted(false),
-																						   _Error(0), _BodySize(0), _HowMuchShouldRead(0)
-{
-	Parse(req);
-};
 
 // copy constructor
 Request::Request(Request const &copy)
@@ -116,17 +115,21 @@ Request::~Request(void){};
 // operator equal
 Request &Request::operator=(Request const &copy)
 {
-	this->_ServerBlock = copy._ServerBlock;
-	this->_addr = copy._addr;
 	this->_srvs = copy._srvs;
-	this->_Error = copy._Error;
+	this->_addr = copy._addr;
+	this->_ServerBlock = copy._ServerBlock;
+	this->_buffer = copy._buffer;
 	this->_method = copy._method;
 	this->_path = copy._path;
 	this->_query = copy._query;
 	this->_version = copy._version;
-	this->_body = copy._body;
 	this->_headers = copy._headers;
+	this->_body = copy._body;
 	this->_requestCompleted = copy._requestCompleted;
+	this->_headersCompleted = copy._headersCompleted;
+	this->_Error = copy._Error;
+	this->_BodySize = copy._BodySize;
+	this->_HowMuchShouldRead = copy._HowMuchShouldRead;
 
 	return *this;
 };
@@ -140,6 +143,11 @@ std::string &Request::getbody(void) { return this->_body; };
 Headers &Request::getheaders(void) { return this->_headers; };
 ServerCnf &Request::getServerBlock(void) { return this->_ServerBlock; };
 bool Request::isRequestCompleted(void) { return this->_requestCompleted; };
+
+void Request::printll()
+{
+	std::cout << "size --->" << this->_srvs.size() << "]." << std::endl;
+}
 
 // print content method
 void Request::print(void)
@@ -172,6 +180,8 @@ std::string Request::generateNameFile(void)
 // parse Methods
 void Request::Parse(std::string &req)
 {
+	if (_requestCompleted)
+		return;
 	req = _buffer.append(req);
 	size_t EndOfHeaders = req.find("\r\n\r\n");
 	if (!_headersCompleted && EndOfHeaders == std::string::npos)

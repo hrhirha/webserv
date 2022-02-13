@@ -39,8 +39,8 @@ private:
 
 public:
 	// canonical form
+	Request(std::vector<ServerCnf> srvs, struct sockaddr_in addr);
 	Request();
-	Request(std::string &req, std::vector<ServerCnf> srvs, struct sockaddr_in addr);
 	Request(Request const &copy);
 	Request &operator=(Request const &copy);
 	~Request(void);
@@ -69,6 +69,9 @@ public:
 	void ChunkedRequest(std::string &req);
 	// Detected Server Fonction
 	ServerCnf _getValidServerCnf(std::vector<ServerCnf> const &serv_cnfs, struct sockaddr_in const addr);
+
+
+	void printll();
 };
 
 #endif
