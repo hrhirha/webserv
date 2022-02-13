@@ -55,6 +55,8 @@ public:
 	Headers &getheaders(void);
 	bool isRequestCompleted(void);
 
+	size_t getError(void) { return _Error; }
+
 	// print content method
 	void print(void);
 	std::string generateNameFile(void);

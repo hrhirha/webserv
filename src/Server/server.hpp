@@ -99,8 +99,10 @@ public:
                 }
 
                 // check if a file descriptor is ready for write
-                if (FD_ISSET(this->_sockets[i]->getSockFd(), &tmpWriteSet))
+                if (i < _sockets.size() && FD_ISSET(this->_sockets[i]->getSockFd(), &tmpWriteSet))
+                {
                     sendRequest(this->_sockets[i]);
+                }
             }
         }
     }
@@ -127,11 +129,10 @@ public:
     void handleClient(Socket *client)
     {
         char buff[MAX_BUFFER_SIZE];
-        bzero(buff, MAX_BUFFER_SIZE);
         std::cout << "Handle Client: " << client->getSockFd() << std::endl;
 
         // receive data from client
-        int size = recv(client->getSockFd(), buff, MAX_BUFFER_SIZE - 1, 0);
+        int size = recv(client->getSockFd(), buff, MAX_BUFFER_SIZE, 0);
 
         std::cout << " size -> " <<  size << std::endl;
 
@@ -152,10 +153,10 @@ public:
         // send to parser and check return value if reading is complete
         if (size > 0)
         {
-            // std::string newStr = std::string(buff);
+            std::string newStr = std::string(buff, size);
             // Request req(newStr, this->_servConf, client->getSockAddr());
             // this->_clients[client->getSockFd()].first = req;
-            // bool isComplete = this->_clients[client->getSockFd()].req.isRequestCompleted();
+            // bool isComplete = this->_clients[client->getSockFd()].first.isRequestCompleted();
             // std::cout << isComplete << std::endl;
             if (true)
             {
