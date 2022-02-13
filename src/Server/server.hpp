@@ -174,7 +174,7 @@ public:
     void sendRequest(Socket *client)
     {
         time_t t;
-        time(&t);
+        time(&t); 
         std::string body = ctime(&t);
         std::string headers = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: ";
         headers.append(std::to_string(body.size()));
