@@ -14,6 +14,7 @@
 #include <vector>
 #include <algorithm>
 #include <map>
+#include <sys/time.h>
 #include "../Response/Response.hpp"
 #define MAX_BUFFER_SIZE 1024 * 20
 
@@ -81,10 +82,15 @@ public:
         fd_set tmpReadSet = this->_readSet;
         fd_set tmpWriteSet = this->_writeSet;
 
+        struct timeval timeLimit = {0, 1e3};
+
         // wait for events in ReadSet and WriteSet
-        int result = select(this->_maxFd + 1, &tmpReadSet, &tmpWriteSet, NULL, NULL);
+        int result = select(this->_maxFd + 1, &tmpReadSet, &tmpWriteSet, NULL, &timeLimit);
         if (result == -1)
+        {
             std::cout << "Error\n";
+            std::cout << errno << std::endl;
+        }
         else if (result > 0)
         {
             for (size_t i = 0; i < this->_sockets.size(); i++)
@@ -113,11 +119,10 @@ public:
 
         // accept connection on server socket and get fd for new Client
         int newClient = accept(sock->getSockFd(), 0, 0);
-        // std::cout << newClient << std::endl;
         Socket *client = new Socket(false);
         client->setSockFd(newClient);
         client->setSockAddr(sock->getSockAddr());
-        Request req;
+        Request req(this->_servConf, sock->getSockAddr());
         Response res;
         this->_clients.insert(std::make_pair(newClient, std::make_pair(req, res)));
         this->_sockets.push_back(client);
@@ -134,12 +139,13 @@ public:
         // receive data from client
         int size = recv(client->getSockFd(), buff, MAX_BUFFER_SIZE, 0);
 
-        std::cout << " size -> " <<  size << std::endl;
+        std::cout << " size -> " << size << std::endl;
 
         // if an error occured or when a stream socket peer has performed a shutdown.
         if (size == -1 || size == 0)
         {
             deleteFromSet(client->getSockFd(), this->_readSet);
+            this->_clients.erase(client->getSockFd());
             client->m_close();
             std::vector<Socket *>::iterator position = std::find(this->_sockets.begin(), this->_sockets.end(), client);
             if (position != this->_sockets.end())
@@ -154,11 +160,9 @@ public:
         if (size > 0)
         {
             std::string newStr = std::string(buff, size);
-            // Request req(newStr, this->_servConf, client->getSockAddr());
-            // this->_clients[client->getSockFd()].first = req;
-            // bool isComplete = this->_clients[client->getSockFd()].first.isRequestCompleted();
-            // std::cout << isComplete << std::endl;
-            if (true)
+            this->_clients[client->getSockFd()].first.Parse(newStr);
+            bool isComplete = this->_clients[client->getSockFd()].first.isRequestCompleted();
+            if (isComplete)
             {
                 deleteFromSet(client->getSockFd(), this->_readSet);
                 addToSet(client->getSockFd(), this->_writeSet);
@@ -192,6 +196,7 @@ public:
             std::cout << client->getSockFd() << ": Connection -> "
                       << " close." << std::endl;
             deleteFromSet(client->getSockFd(), this->_writeSet);
+            this->_clients.erase(client->getSockFd());
             client->m_close();
             std::vector<Socket *>::iterator position = std::find(this->_sockets.begin(), this->_sockets.end(), client);
             if (position != this->_sockets.end())
