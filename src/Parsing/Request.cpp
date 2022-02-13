@@ -10,7 +10,6 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-
 #include "Request.hpp"
 #include <unistd.h>
 // status code defines
@@ -263,6 +262,7 @@ void Request::ChunkedRequest(std::string &req)
 // fonction to fill the body
 void Request::FillBody(std::string &req)
 {
+	std::cout << "Content length --> " << _headers["Content-Length"]  << std::endl;
 	if (_body.empty())
 	{
 		_body = generateNameFile();

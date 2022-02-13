@@ -53,7 +53,6 @@ Response &Response::operator=(Response const &res)
 	_req_fd = res._req_fd;
 	_boundary = res._boundary;
 
-
 	_first_call = res._first_call;
 
 	return *this;
@@ -466,8 +465,11 @@ void Response::_moveUploadedFile(Headers &th)
 	{
 		filename = filename.substr(is_file + 10);
 		filename = filename.substr(0, filename.size() - 1);
-		std::string cmd = "cp " + _body + " " + _loc.getLocation_root() + _loc.getUpload_path() + (_loc.getUpload_path()[_loc.getUpload_path().size() - 1] != '/' ? "/" : "") + filename;
-		system(cmd.c_str());
+		if (!filename.empty())
+		{
+			std::string cmd = "cp " + _body + " " + _loc.getLocation_root() + _loc.getUpload_path() + (_loc.getUpload_path()[_loc.getUpload_path().size() - 1] != '/' ? "/" : "") + filename;
+			system(cmd.c_str());
+		}
 	}
 	remove(_body.c_str());
 	_body.clear();
