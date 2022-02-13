@@ -14,6 +14,7 @@
 #include <vector>
 #include <algorithm>
 #include <map>
+#include <sys/time.h>
 #include "../Response/Response.hpp"
 #define MAX_BUFFER_SIZE 1024 * 20
 
@@ -81,10 +82,15 @@ public:
         fd_set tmpReadSet = this->_readSet;
         fd_set tmpWriteSet = this->_writeSet;
 
+        struct timeval timeLimit = {0, 1e3};
+
         // wait for events in ReadSet and WriteSet
-        int result = select(this->_maxFd + 1, &tmpReadSet, &tmpWriteSet, NULL, NULL);
+        int result = select(this->_maxFd + 1, &tmpReadSet, &tmpWriteSet, NULL, &timeLimit);
         if (result == -1)
+        {
             std::cout << "Error\n";
+            std::cout << errno << std::endl;
+        }
         else if (result > 0)
         {
             for (size_t i = 0; i < this->_sockets.size(); i++)
