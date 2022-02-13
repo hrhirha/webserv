@@ -111,7 +111,7 @@ bool Response::build(Request const &req)
 
 bool Response::build(size_t code)
 {
-	if (code != 0) // chaeck if there was an error while parsing
+	if (_req.getError() != 0) // chaeck if there was an error while parsing
 		return _resGenerate(code);
 	if (_checkLoc())
 		return true;
@@ -171,6 +171,7 @@ std::string Response::_readResBody(std::string &ret)
 		return ret;
 	}
 	ret.append(buf, rd);
+	bzero(buf, 1048576);
 	return ret;
 }
 
@@ -239,16 +240,8 @@ bool Response::_handleRegFile(std::string fpath, struct stat st)
 // Directory GET/POST/DELETE
 bool Response::_preHandleDir(std::string &fpath, size_t port)
 {
-	if (fpath[fpath.size() - 1] != '/' /*&& fpath.substr(fpath.find_last_of("/")) != std::string("..")*/) // _request path does't end with '/'
+	if (fpath[fpath.size() - 1] != '/')
 		return _resGenerate(301, port);
-
-	// chdir(fpath.c_str());
-	// char *cwd = get_current_dir_name();
-	// fpath = cwd;
-	// if (fpath.find(_loc.root) == std::string::npos)
-	// 	_req.path = "/";
-	// fpath = _loc.root + _req.path;
-	// free(cwd);
 
 	_internalRedir(fpath); // if there is more appropraite location
 	if (_checkLoc())
@@ -483,8 +476,6 @@ bool Response::_handleCGI(std::string fpath)
 	char **args;
 	char **env;
 
-	// _loc.cgi_path = "/usr/bin/php-cgi"; // to be removed
-	// _loc.cgi_path = "/Users/hrhirha/goinfre/.brew/bin/php-cgi"; // to be removed
 	args = _getCGIArgs(fpath);
 	env = _getCGIEnv(fpath);
 
@@ -706,15 +697,23 @@ bool Response::_resGenerate(size_t code, std::string redir)
 	_statusCode = code;
 	_statusMsg = statusMessage(code);
 	// check if code is in error_page
-	gettimeofday(&tv, NULL);
-	_body = "/tmp/" + utostr(code) + "_" + utostr(tv.tv_sec * 1e6 + tv.tv_usec) + ".html";
-	fs.open(_body.c_str(), std::ios_base::out | std::ios_base::binary);
-	sr = redir.empty() ? specRes(code) : redir;
-	fs << sr;
-	fs.close();
+	error error_pages = _srv.geterror_pages();
+	_body = error_pages.second;
+	struct stat st;
+	stat(_body.c_str(), &st);
+	_headers["Content-Length"] = st.st_size;
+	if (std::find(error_pages.first.begin(), error_pages.first.end(), _statusCode) == error_pages.first.end())
+	{
+		gettimeofday(&tv, NULL);
+		_body = "/tmp/" + utostr(code) + "_" + utostr(tv.tv_sec * 1e6 + tv.tv_usec) + ".html";
+		fs.open(_body.c_str(), std::ios_base::out | std::ios_base::binary);
+		sr = redir.empty() ? specRes(code) : redir;
+		fs << sr;
+		fs.close();
+		_headers["Content-Length"] = utostr(sr.size());
+	}
 	if (redir.empty())
 		_headers["Content-Type"] = "text/html";
-	_headers["Content-Length"] = utostr(sr.size());
 	_headers["Date"] = timeToStr(time(NULL));
 	_fd = open(_body.c_str(), O_RDONLY);
 	_ready = true;
@@ -778,9 +777,11 @@ size_t Response::_getValidLocation(Locations const &locs)
 
 bool Response::_checkLoc()
 {
-	vs::iterator first = _loc.getAcceptedMethods().begin();
-	vs::iterator last = _loc.getAcceptedMethods().end();
-	if (_loc.getAcceptedMethods().size() && std::find(first, last, _req.getmethod()) == last)
+	Methods methods = _loc.getAcceptedMethods();
+	vs::iterator first = methods.begin();
+	vs::iterator last = methods.end();
+	// std::cout << "DEBUGING\n";
+	if (methods.size() && std::find(first, last, _req.getmethod()) == last)
 		return _resGenerate(403);
 	if (_loc.getRedirect().first)
 		return _resRedir(_loc.getRedirect().first, _srv.getPort(), _loc.getRedirect().second);
