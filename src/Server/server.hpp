@@ -171,16 +171,20 @@ public:
 
     void sendRequest(Socket *client)
     {
-        time_t t;
-        time(&t);
-        std::string body = ctime(&t);
-        std::string headers = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: ";
-        headers.append(std::to_string(body.size()));
-        headers.append("\n\n");
-        char *response = strdup((headers + body).c_str());
-        send(client->getSockFd(), response, strlen(response), 0);
 
-        // is Connection -> keep-alive
+        bool isResponseCompleted = this->_clients[client->getSockFd()].second.build(this->_clients[client->getSockFd()].first);
+        if (!isResponseCompleted)
+            return;
+
+        std::string response = this->_clients[client->getSockFd()].second.get();
+
+        std::cout << "response --> " << response << std::endl;
+
+        send(client->getSockFd(), response.c_str(), response.size(), 0);
+
+        bool isDone = this->_clients[client->getSockFd()].second.done();
+        if (!isDone)
+            return;
         if (client->keepAlive())
         {
             std::cout << client->getSockFd() << ": Connection -> "
