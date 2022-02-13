@@ -137,8 +137,6 @@ public:
         // receive data from client
         int size = recv(client->getSockFd(), buff, MAX_BUFFER_SIZE, 0);
 
-        std::cout << " size -> " << size << std::endl;
-
         // if an error occured or when a stream socket peer has performed a shutdown.
         if (size == -1 || size == 0)
         {
@@ -178,9 +176,8 @@ public:
 
         std::string response = this->_clients[client->getSockFd()].second.get();
 
-        std::cout << "response --> " << response << std::endl;
-
-        send(client->getSockFd(), response.c_str(), response.size(), 0);
+        if (!response.empty())
+            send(client->getSockFd(), response.c_str(), response.size(), 0);
 
         bool isDone = this->_clients[client->getSockFd()].second.done();
         if (!isDone)

@@ -7,7 +7,7 @@ Response::Response() : _statusCode(0), _statusMsg(), _headers(), _body(),
 					   _pid(-1), _fd(-1), _timeout(0),
 					   _fs(), _dir(NULL), _dpath(),
 					   _ready(false), _done(false),
-					   _req_fd(-1), _boundary()
+					   _req_fd(-1), _boundary(), _first_call(true)
 {
 	_headers["Server"] = "WebServ/1.0";
 	_headers["Connection"] = "close";
@@ -15,11 +15,11 @@ Response::Response() : _statusCode(0), _statusMsg(), _headers(), _body(),
 }
 
 Response::Response(Response const &res) : _statusCode(0), _statusMsg(), _headers(), _body(),
-					   _req(), _srv(), _loc(),
-					   _pid(-1), _fd(-1), _timeout(0),
-					   _fs(), _dir(NULL), _dpath(),
-					   _ready(false), _done(false),
-					   _req_fd(-1), _boundary()
+										  _req(), _srv(), _loc(),
+										  _pid(-1), _fd(-1), _timeout(0),
+										  _fs(), _dir(NULL), _dpath(),
+										  _ready(false), _done(false),
+										  _req_fd(-1), _boundary()
 {
 	*this = res;
 }
@@ -50,8 +50,11 @@ Response &Response::operator=(Response const &res)
 
 	if (res._req_fd > -1)
 		_req_fd = dup(res._req_fd);
-	_req_fd  = res._req_fd;
+	_req_fd = res._req_fd;
 	_boundary = res._boundary;
+
+
+	_first_call = res._first_call;
 
 	return *this;
 }
@@ -121,14 +124,14 @@ bool Response::build(size_t code)
 std::string Response::get()
 {
 	std::string ret("");
-	static bool first_call = true;
 
-	if (!first_call)
+	if (!_first_call)
 		return _readResBody(ret);
 
 	if (_statusCode == 444)
 	{
 		_done = true;
+		_first_call = true;
 		close(_fd);
 		return "";
 	}
@@ -137,7 +140,7 @@ std::string Response::get()
 	for (Headers::iterator it = _headers.begin(); it != _headers.end(); it++)
 		ret.append(it->first + ": " + it->second + "\r\n");
 	ret.append("\r\n");
-	first_call = false;
+	_first_call = false;
 	return _readResBody(ret);
 }
 
@@ -158,6 +161,7 @@ std::string Response::_readResBody(std::string &ret)
 	if (rd <= 0)
 	{
 		_done = true;
+		_first_call = true;
 		close(_fd);
 	}
 	if (_isChunked())

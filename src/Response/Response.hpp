@@ -92,6 +92,10 @@ class Response
 		int					_req_fd;
 		std::string			_boundary;
 
+
+		//first call
+		bool				_first_call;
+
 	public:
 		int getFD() { return _fd; }
 		Response();
