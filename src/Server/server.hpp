@@ -87,10 +87,7 @@ public:
         // wait for events in ReadSet and WriteSet
         int result = select(this->_maxFd + 1, &tmpReadSet, &tmpWriteSet, NULL, &timeLimit);
         if (result == -1)
-        {
-            std::cout << "Error\n";
-            std::cout << errno << std::endl;
-        }
+            std::cout << strerror(errno) << std::endl;
         else if (result > 0)
         {
             for (size_t i = 0; i < this->_sockets.size(); i++)
@@ -145,6 +142,7 @@ public:
         // if an error occured or when a stream socket peer has performed a shutdown.
         if (size == -1 || size == 0)
         {
+            std::cout << strerror(errno) << std::endl;
             deleteFromSet(client->getSockFd(), this->_readSet);
             this->_clients.erase(client->getSockFd());
             client->m_close();
@@ -174,7 +172,7 @@ public:
     void sendRequest(Socket *client)
     {
         time_t t;
-        time(&t); 
+        time(&t);
         std::string body = ctime(&t);
         std::string headers = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: ";
         headers.append(std::to_string(body.size()));
@@ -187,6 +185,11 @@ public:
         {
             std::cout << client->getSockFd() << ": Connection -> "
                       << " keep-alive." << std::endl;
+
+            // reset res & req
+            this->_clients[client->getSockFd()].first = Request(this->_servConf, client->getSockAddr());
+            this->_clients[client->getSockFd()].second = Response();
+
             deleteFromSet(client->getSockFd(), this->_writeSet);
             addToSet(client->getSockFd(), this->_readSet);
         }
