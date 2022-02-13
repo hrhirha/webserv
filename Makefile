@@ -1,6 +1,6 @@
 NAME = webserv
 CC = clang++
-FLAGS = -std=c++98 -Wall -Wextra -Werror -fsanitize=address -fsanitize=undefined -g3
+FLAGS = -std=c++98 -Wall -Wextra -Werror -g
 SRCS = main.cpp src/*/*.cpp
 
 all: $(NAME)

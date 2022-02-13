@@ -14,7 +14,12 @@ Response::Response() : _statusCode(0), _statusMsg(), _headers(), _body(),
 	_headers["Content-Type"] = "application/octet-stream";
 }
 
-Response::Response(Response const &res)
+Response::Response(Response const &res) : _statusCode(0), _statusMsg(), _headers(), _body(),
+					   _req(), _srv(), _loc(),
+					   _pid(-1), _fd(-1), _timeout(0),
+					   _fs(), _dir(NULL), _dpath(),
+					   _ready(false), _done(false),
+					   _req_fd(-1), _boundary()
 {
 	*this = res;
 }
@@ -45,6 +50,7 @@ Response &Response::operator=(Response const &res)
 
 	if (res._req_fd > -1)
 		_req_fd = dup(res._req_fd);
+	_req_fd  = res._req_fd;
 	_boundary = res._boundary;
 
 	return *this;

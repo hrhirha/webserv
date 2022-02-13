@@ -28,7 +28,7 @@ private:
     fd_set _readSet;
     fd_set _writeSet;
     int _maxFd;
-    std::map<int, Request> _clients;
+    std::map<int, std::pair<Request, Response> > _clients;
 
 public:
     Server() : _maxFd(-1) {}
@@ -124,7 +124,7 @@ public:
 
         client->setSockAddr(sock->getSockAddr());
         Request req(this->_servConf, sock->getSockAddr());
-        this->_clients.insert(std::make_pair(newClient, req));
+        this->_clients.insert(std::make_pair(newClient, std::make_pair(req, Response())));
 
         this->_sockets.push_back(client);
 
@@ -161,8 +161,8 @@ public:
         if (size > 0)
         {
             std::string newStr = std::string(buff, size);
-            this->_clients[client->getSockFd()].Parse(newStr);
-            bool isComplete = this->_clients[client->getSockFd()].isRequestCompleted();
+            this->_clients[client->getSockFd()].first.Parse(newStr);
+            bool isComplete = this->_clients[client->getSockFd()].first.isRequestCompleted();
             if (isComplete)
             {
                 deleteFromSet(client->getSockFd(), this->_readSet);

@@ -93,6 +93,7 @@ class Response
 		std::string			_boundary;
 
 	public:
+		int getFD() { return _fd; }
 		Response();
 		Response(Response const &);
 		Response &operator= (Response const &);
