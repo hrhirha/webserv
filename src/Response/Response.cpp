@@ -132,6 +132,7 @@ std::string Response::get()
 		_done = true;
 		_first_call = true;
 		close(_fd);
+		_fd = -1;
 		return "";
 	}
 	ret = Response::_httpVersion;
@@ -156,6 +157,7 @@ std::string Response::_readResBody(std::string &ret)
 	int sel = _select(_fd);
 	if (sel <= 0) // select failed | _fd is not in fd_set
 		return "";
+	bzero(buf, 1048576);
 	int rd = read(_fd, buf, 1048576);
 	if (rd <= 0)
 	{
@@ -171,7 +173,6 @@ std::string Response::_readResBody(std::string &ret)
 		return ret;
 	}
 	ret.append(buf, rd);
-	bzero(buf, 1048576);
 	return ret;
 }
 
@@ -589,7 +590,7 @@ bool Response::_waitProc()
 bool Response::_readFromCGI()
 {
 	char buf[1048576];
-	static std::string buffer;
+	static std::string buffer("");
 
 	_fd = (_fd == -1) ? open(_body.c_str(), O_RDONLY) : _fd;
 	int sel = _select(_fd);
@@ -616,10 +617,12 @@ bool Response::_readFromCGI()
 			_statusCode = atoi(it->second.c_str());
 			_statusMsg = statusMessage(_statusCode);
 			_headers.erase(it);
+			buffer.clear();
 			return true;
 		}
 		_statusCode = 200;
 		_statusMsg = statusMessage(200);
+		buffer.clear();
 		return true;
 	}
 	return false;
@@ -627,17 +630,17 @@ bool Response::_readFromCGI()
 
 bool Response::_getCgiHeaders(std::string &buffer)
 {
-	static bool done = false;
+	// static bool done = false;
 	std::string h("");
 	size_t i, j;
 
-	if (done)
-		return true;
+	// if (done)
+		// return true;
 
 	i = buffer.find("\r\n\r\n");
 	if (i == std::string::npos)
 		return false;
-	done = true;
+	// done = true;
 	h = buffer.substr(0, i + 2);
 	buffer = buffer.substr(i + 4);
 	i = h.find("\r\n");
@@ -701,7 +704,7 @@ bool Response::_resGenerate(size_t code, std::string redir)
 	_body = error_pages.second;
 	struct stat st;
 	stat(_body.c_str(), &st);
-	_headers["Content-Length"] = st.st_size;
+	_headers["Content-Length"] = utostr(st.st_size);
 	if (std::find(error_pages.first.begin(), error_pages.first.end(), _statusCode) == error_pages.first.end())
 	{
 		gettimeofday(&tv, NULL);
@@ -767,7 +770,8 @@ size_t Response::_getValidLocation(Locations const &locs)
 		std::string lpath = locs[i].getPathOfLocation();
 		if ((rext == lpath) || _req.getpath() == lpath)
 			return i;
-		if (path.size() >= locs[i].getPathOfLocation().size() && locs[i].getPathOfLocation() == path.substr(0, locs[i].getPathOfLocation().size()) && (loc_idx == -1 || locs[i].getPathOfLocation().size() > locs[loc_idx].getPathOfLocation().size()))
+		if (path.size() >= locs[i].getPathOfLocation().size() && locs[i].getPathOfLocation() == path.substr(0, locs[i].getPathOfLocation().size())
+			&& (loc_idx == -1 || locs[i].getPathOfLocation().size() > locs[loc_idx].getPathOfLocation().size()))
 		{
 			loc_idx = i;
 		}
