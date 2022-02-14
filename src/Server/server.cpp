@@ -28,6 +28,7 @@ int entry(std::string file)
     server.fillSockSet();
     while (1)
     {
+        signal(SIGPIPE, SIG_IGN);
         server.performSelect();
     }
     server.clean();

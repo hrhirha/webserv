@@ -158,8 +158,10 @@ std::string Response::_readResBody(std::string &ret)
 	if (sel <= 0) // select failed | _fd is not in fd_set
 		return "";
 	bzero(buf, 1048576);
+	errno = 0;
 	int rd = read(_fd, buf, 1048576);
-	if (rd <= 0)
+	if (rd == -1) return "";
+	if (rd == 0)
 	{
 		_done = true;
 		_first_call = true;
@@ -784,7 +786,6 @@ bool Response::_checkLoc()
 	Methods methods = _loc.getAcceptedMethods();
 	vs::iterator first = methods.begin();
 	vs::iterator last = methods.end();
-	// std::cout << "DEBUGING\n";
 	if (methods.size() && std::find(first, last, _req.getmethod()) == last)
 		return _resGenerate(403);
 	if (_loc.getRedirect().first)
