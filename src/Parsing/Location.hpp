@@ -49,6 +49,7 @@ class Location
 		std::string	getIndex( void ) const;
 		std::string	getUpload_path( void ) const;
 		std::string	getPathCgi( void ) const;
+		Location getDefLoc();
 	/*			fill location	*/
 		Location&		parseLocation( std::ifstream& _ifs, std::string& path);
 };

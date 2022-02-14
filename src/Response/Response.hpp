@@ -25,41 +25,7 @@
 
 # include "../Parsing/Request.hpp"	
 
-// typedef std::map<std::string, std::string>	Headers;
 typedef std::vector<std::string>			vs;
-
-// struct Request
-// {
-// 	std::string	method;
-// 	std::string	path;
-// 	std::string query;
-// 	std::string	version;
-// 	Headers		headers;
-// 	std::string	body;
-// };
-
-// struct Location
-// {
-// 	std::string						path;
-// 	vs								accepted_methods;
-// 	std::pair<size_t,std::string>	redirect;
-// 	std::string						root;
-// 	std::string						index;
-// 	bool							autoindex;
-// 	std::string						upload_path;
-// 	std::string						cgi_path;
-// };
-
-// typedef std::vector<Location>				Locations;
-
-// struct ServerCnf
-// {
-// 	std::string					host;
-// 	size_t						port;
-// 	vs							server_names;
-// 	size_t						client_max_body_size;
-// 	Locations					locs;
-// };
 
 class Response
 {
@@ -104,7 +70,6 @@ class Response
 		~Response();
 
 		bool		build(Request const &);
-		bool		build(size_t=0);
 		std::string get();
 		bool		done();
 
@@ -118,7 +83,7 @@ class Response
 
 		bool	_handleRegFile(std::string, struct stat);
 
-		bool	_preHandleDir(std::string&, size_t);
+		bool	_preHandleDir(std::string&, size_t, bool &);
 		bool	_handleDir(std::string, struct stat, size_t);
 		void	_internalRedir(std::string &);
 		bool	_dirListing();
@@ -144,8 +109,7 @@ class Response
 		bool	_resGenerate(size_t, size_t);
 		bool	_resGenerate(size_t, std::string, struct stat);
 
-		size_t	_getValidServerCnf(std::vector<ServerCnf> const &, struct sockaddr_in const);
-		size_t	_getValidLocation(Locations const &);
+		Location	_getValidLocation(Locations const &);
 		bool	_checkLoc();
 
 		int		_select(int);

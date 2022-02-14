@@ -103,16 +103,11 @@ bool Response::build(Request const &req)
 	if (_req_fd > 0)
 		return _parseBody();
 	_req = req;
-	// _srv = serv_cnfs[_getValidServerCnf(serv_cnfs, addr)]; // get ot from request
+	_statusCode = _req.getError();
 	_srv = _req.getServerBlock();
-	_loc = _srv.getlocs()[_getValidLocation(_srv.getlocs())];
-	return build(_statusCode);
-}
-
-bool Response::build(size_t code)
-{
-	if (_req.getError() != 0) // chaeck if there was an error while parsing
-		return _resGenerate(code);
+	_loc = _getValidLocation(_srv.getlocs());
+	if (_statusCode != 0) // chaeck if there was an error while parsing
+		return _resGenerate(_statusCode);
 	if (_checkLoc())
 		return true;
 
@@ -192,10 +187,12 @@ bool Response::_handleGetRequest(size_t port, std::string fpath)
 	struct stat st;
 	int st_ret;
 
+	if (!_loc.getPathCgi().empty())
+		return _handleCGI(fpath);
 	st_ret = stat(fpath.c_str(), &st);
 	if (!st_ret && S_ISREG(st.st_mode)) // Handle regular file
 		return _handleRegFile(fpath, st);
-	if (!st_ret /*&& S_ISDIR(st.st_mode)*/) // Handle directory
+	if (!st_ret) // Handle directory
 		return _handleDir(fpath, st, port);
 	if (errno == ENOENT || errno == ENOTDIR)
 		return _resGenerate(404);
@@ -207,23 +204,23 @@ bool Response::_handlePostRequest(size_t port, std::string fpath)
 	struct stat st;
 	int st_ret;
 
+	errno = 0;
 	st_ret = stat(fpath.c_str(), &st);
-	if (_isCGI(_loc.getPathOfLocation())) // Handle CGI
+	if (st_ret == -1)
+		return _resGenerate(errno == ENOENT || errno == ENOTDIR ? 404 : 403);
+	if (!_loc.getPathCgi().empty())
 		return _handleCGI(fpath);
 	if (!st_ret && S_ISDIR(st.st_mode)) // Handle directory
 		return _handlePostDir(fpath, st, port);
+	std::cout << "stat = " << st_ret << ",  error = " << strerror(errno) << "\n";
 	return _resGenerate(405);
 }
 
 bool Response::_handleDeleteRequest(size_t port, std::string fpath)
 {
-	struct stat st;
-	int st_ret;
-
 	(void)port;
-	(void)fpath;
-	st_ret = stat(fpath.c_str(), &st);
-	if (_isCGI(_loc.getPathOfLocation()))
+
+	if (!_loc.getPathCgi().empty())
 		return _handleCGI(fpath);
 	return _resGenerate(405);
 }
@@ -231,8 +228,6 @@ bool Response::_handleDeleteRequest(size_t port, std::string fpath)
 // get Regular file
 bool Response::_handleRegFile(std::string fpath, struct stat st)
 {
-	if (_isCGI(_loc.getPathOfLocation())) // Handle CGI
-		return _handleCGI(fpath);
 	errno = 0;
 	_fd = open(fpath.c_str(), O_RDONLY);
 	if (_fd == -1)
@@ -241,12 +236,25 @@ bool Response::_handleRegFile(std::string fpath, struct stat st)
 }
 
 // Directory GET/POST/DELETE
-bool Response::_preHandleDir(std::string &fpath, size_t port)
+bool Response::_preHandleDir(std::string &fpath, size_t port, bool &cgi)
 {
 	if (fpath[fpath.size() - 1] != '/')
 		return _resGenerate(301, port);
 
-	_internalRedir(fpath); // if there is more appropraite location
+	std::string tmpreq = _req.getpath();
+	while (1)
+	{
+		if (!_loc.getPathCgi().empty())
+		{
+			_req.getpath() = tmpreq;
+			return (cgi = true);
+		}
+		std::string tmp = _loc.getPathOfLocation();
+		_internalRedir(fpath); // if there is more appropraite location
+		if (tmp == _loc.getPathOfLocation())
+			break ;
+	}
+	_req.getpath() = tmpreq;
 	if (_checkLoc())
 		return true;
 	return false;
@@ -255,10 +263,14 @@ bool Response::_preHandleDir(std::string &fpath, size_t port)
 // get Directory
 bool Response::_handleDir(std::string fpath, struct stat st, size_t port)
 {
-	if (_preHandleDir(fpath, port))
+	bool cgi = false; 
+	
+	if (_preHandleDir(fpath, port, cgi))
+	{
+		if (cgi) return _handleCGI(fpath);
 		return true;
-	if (_isCGI(_loc.getPathOfLocation()))
-		return _handleCGI(fpath);
+	}
+
 	// process regular file
 	bzero(&st, sizeof(struct stat));
 	if (!stat(fpath.c_str(), &st) && S_ISDIR(st.st_mode) && _loc.getAutoIndex())
@@ -279,18 +291,16 @@ void Response::_internalRedir(std::string &fpath)
 	std::string new_rpath;
 
 	size_t idx = _loc.getIndex().find_first_not_of("/");
-	new_rpath = _req.getpath() + _loc.getIndex().substr(idx != std::string::npos ? idx : 0);
-	std::string tmp = _req.getpath();
+	new_rpath = _req.getpath() + ((_req.getpath()[_req.getpath().size()-1] != '/') ? "" : _loc.getIndex().substr(idx != std::string::npos ? idx : 0));
 	_req.getpath() = new_rpath;
-	Location nloc = _srv.getlocs()[_getValidLocation(_srv.getlocs())];
-	fpath += _loc.getIndex().size() ? _loc.getIndex() : "index.html";
-	if (_loc.getPathOfLocation() != nloc.getPathOfLocation())
+	Location nloc = _getValidLocation(_srv.getlocs());
+	fpath += (fpath[fpath.size()-1] != '/') ? "" : _loc.getIndex().size() ? _loc.getIndex() : "index.html";
+	if (_loc.getPathOfLocation() != nloc.getPathOfLocation() && nloc.getPathCgi().empty())
 	{
 		fpath = nloc.getLocation_root() + _req.getpath() + (_req.getpath()[_req.getpath().size() - 1] == '/' ? (nloc.getIndex().size() ? nloc.getIndex() : "index.html") : "");
 	}
 	_loc = nloc;
 	_dpath = fpath.substr(0, fpath.find_last_of("/") + 1);
-	_req.getpath() = tmp;
 }
 
 bool Response::_dirListing()
@@ -351,13 +361,15 @@ bool Response::_readDir()
 bool Response::_handlePostDir(std::string fpath, struct stat st, size_t port)
 {
 	(void)st;
-	if (_preHandleDir(fpath, port))
+	bool cgi = false;
+	if (_preHandleDir(fpath, port, cgi))
+	{
+		if (cgi) return _handleCGI(fpath);
 		return true;
-	// _loc.upload_path = "/uploads/"; // to be removed
+	}
 	if (!_loc.getUpload_path().empty())
 		return _handleUpload();
-	if (_isCGI(_loc.getPathOfLocation()))
-		return _handleCGI(fpath);
+
 	bzero(&st, sizeof(struct stat));
 	if (!stat(fpath.c_str(), &st) && S_ISDIR(st.st_mode))
 		return _resGenerate(403);
@@ -516,6 +528,7 @@ char **Response::_getCGIArgs(std::string const &fpath)
 	std::vector<std::string> args;
 
 	args.push_back(std::string(_loc.getPathCgi()));
+	args.push_back(fpath);
 	return vectorToPtr(args);
 }
 
@@ -753,32 +766,32 @@ bool Response::_resGenerate(size_t code, std::string fpath, struct stat st)
 
 // Choosing Location to use
 
-size_t Response::_getValidLocation(Locations const &locs)
+Location Response::_getValidLocation(Locations const &locs)
 {
 	size_t j;
 	int loc_idx = -1;
-	if (_req.getpath()[0] != '/') // _request path doesn't start with '/'
-	{
-		_statusCode = 400;
-		return 0;
-	}
+
 	j = _req.getpath().find_last_of('/');
 	std::string path = _req.getpath().substr(0, j + 1);
+	std::string fname = _req.getpath().substr(j + 1);
+	size_t dot = fname.find_last_of(".");
+	std::string rext = (dot != std::string::npos) ? fname.substr(dot) : "";
 	for (size_t i = 0; i < locs.size(); i++)
 	{
-		std::string fname = _req.getpath().substr(j + 1);
-		size_t dot = fname.find_last_of(".");
-		std::string rext = (dot != std::string::npos) ? fname.substr(dot) : "";
 		std::string lpath = locs[i].getPathOfLocation();
 		if ((rext == lpath) || _req.getpath() == lpath)
-			return i;
-		if (path.size() >= locs[i].getPathOfLocation().size() && locs[i].getPathOfLocation() == path.substr(0, locs[i].getPathOfLocation().size())
-			&& (loc_idx == -1 || locs[i].getPathOfLocation().size() > locs[loc_idx].getPathOfLocation().size()))
+			return locs[i];
+		lpath += lpath[lpath.size()-1] == '/' ? "" : "/";
+		std::string loc_p = locs[i].getPathOfLocation();
+		if (path.size() >= loc_p.size() && loc_p == path.substr(0, loc_p.size())
+			&& (loc_idx == -1 || loc_p.size() > locs[loc_idx].getPathOfLocation().size()))
 		{
 			loc_idx = i;
 		}
 	}
-	return loc_idx;
+	if (loc_idx < 0)
+		return Location().getDefLoc();
+	return locs[loc_idx];
 }
 
 bool Response::_checkLoc()

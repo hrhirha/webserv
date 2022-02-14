@@ -60,11 +60,19 @@
 	{	return	_upload_path;		};
 	std::string	Location::getPathCgi( void ) const
 	{	return	_pathcgi;			};
+	Location Location::getDefLoc()
+	{
+		Location loc;
+		loc._pathOfLocation = "/";
+		loc._location_root = "www";
+		loc._index = "index.html";
+		return loc;
+	}
 
 /*			fill location	*/
 	Location&	Location::parseLocation( std::ifstream& _ifs, std::string& path)
 	{
-		_pathOfLocation = (path[path.size() - 1] == '/' || path[0] == '.') ? path : path.append("/"); // modified by hamza
+		_pathOfLocation = path;
 		std::string line;
 		while (std::getline(_ifs, line))
 		{

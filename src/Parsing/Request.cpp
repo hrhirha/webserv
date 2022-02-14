@@ -268,7 +268,6 @@ void Request::ChunkedRequest(std::string &req)
 // fonction to fill the body
 void Request::FillBody(std::string &req)
 {
-	std::cout << "Content length --> " << _headers["Content-Length"] << std::endl;
 	if (_body.empty())
 	{
 		_body = generateNameFile();
@@ -348,6 +347,7 @@ void Request::FillFirstLineInfo(char *splitedLine)
 			if ((found = FindQuery.find("?")) != std::string::npos)
 			{
 				_path = FindQuery.substr(0, found);
+				_Error = (!_Error && _path[0] != '/') ? BAD_REQUEST : _Error;
 				_query = FindQuery.substr(found + 1);
 			}
 			else
