@@ -90,15 +90,20 @@ int convert(char num[])
 	return temp;
 }
 
+bool Request::isKeepAlive()
+{
+	return this->_keepAlive;
+}
+
 Request::Request(std::vector<ServerCnf> srvs, struct sockaddr_in addr) : _srvs(srvs), _addr(addr), _method(""), _path(""), _query(""),
 																		 _version(""), _body(""), _requestCompleted(false), _headersCompleted(false),
-																		 _Error(0), _BodySize(0), _HowMuchShouldRead(0)
+																		 _Error(0), _BodySize(0), _HowMuchShouldRead(0), _keepAlive(false)
 {
 }
 
 Request::Request() : _method(""), _path(""), _query(""),
 					 _version(""), _body(""), _requestCompleted(false), _headersCompleted(false),
-					 _Error(0), _BodySize(0), _HowMuchShouldRead(0)
+					 _Error(0), _BodySize(0), _HowMuchShouldRead(0), _keepAlive(false)
 {
 }
 
@@ -129,6 +134,7 @@ Request &Request::operator=(Request const &copy)
 	this->_Error = copy._Error;
 	this->_BodySize = copy._BodySize;
 	this->_HowMuchShouldRead = copy._HowMuchShouldRead;
+	this->_keepAlive = copy._keepAlive;
 
 	return *this;
 };
@@ -262,7 +268,7 @@ void Request::ChunkedRequest(std::string &req)
 // fonction to fill the body
 void Request::FillBody(std::string &req)
 {
-	std::cout << "Content length --> " << _headers["Content-Length"]  << std::endl;
+	std::cout << "Content length --> " << _headers["Content-Length"] << std::endl;
 	if (_body.empty())
 	{
 		_body = generateNameFile();
@@ -321,6 +327,8 @@ void Request::parseHeaders(std::string &req, size_t EndOfHeaders)
 		start = EndOfLine + 2;
 		EndOfLine = req.find("\r\n", EndOfLine + 2);
 	}
+	if (_headers["Connection"] == "keep-alive")
+		this->_keepAlive = true;
 	_buffer = _buffer.substr(EndOfHeaders + 4);
 	this->_requestCompleted = this->_Error;
 	this->_headersCompleted = true;

@@ -36,6 +36,7 @@ private:
 	size_t _BodySize;
 	size_t _HowMuchShouldRead;
 	std::ofstream _fstream;
+	bool		_keepAlive;
 
 public:
 	// canonical form
@@ -67,6 +68,7 @@ public:
 	void FillFirstLineInfo(char *splitedLine);
 	void FillBody(std::string &req);
 	void ChunkedRequest(std::string &req);
+	bool isKeepAlive();
 	// Detected Server Fonction
 	ServerCnf _getValidServerCnf(std::vector<ServerCnf> const &serv_cnfs, struct sockaddr_in const addr);
 

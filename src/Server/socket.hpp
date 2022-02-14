@@ -74,4 +74,5 @@ public:
     void setSockAddr(struct sockaddr_in servAddr) { this->_serv_addr = servAddr; }
     int getSockFd() const { return this->_sockfd; }
     int getPort() const { return this->_port; }
+    void updateConnection(bool co) { this->_keepAlive = co; }
 };

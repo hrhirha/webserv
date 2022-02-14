@@ -162,6 +162,7 @@ public:
 			bool isComplete = this->_clients[client->getSockFd()].first.isRequestCompleted();
 			if (isComplete)
 			{
+				client->updateConnection(this->_clients[client->getSockFd()].first.isKeepAlive());
 				deleteFromSet(client->getSockFd(), this->_readSet);
 				addToSet(client->getSockFd(), this->_writeSet);
 			}
@@ -189,6 +190,8 @@ public:
 		{
 			return;
 		}
+
+		std::cout << client->keepAlive() << std::endl;
 		if (client->keepAlive())
 		{
 			std::cout << client->getSockFd() << ": Connection -> "
