@@ -18,7 +18,6 @@ bg:
 	@./$(NAME) &
 
 $(NAME):
-	@echo "Compiling..."
 	@$(CC) $(FLAGS) $(SRCS) -o $(NAME)
 
 clean:

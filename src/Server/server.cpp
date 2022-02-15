@@ -26,6 +26,7 @@ int entry(std::string file)
     server.setServConf(srvs);
     server.startServSockets();
     server.fillSockSet();
+    std::cout << "WebServ: running" << std::endl;
     while (1)
     {
         signal(SIGPIPE, SIG_IGN);

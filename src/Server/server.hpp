@@ -112,8 +112,6 @@ public:
 
 	void acceptNewClient(Socket *sock)
 	{
-		std::cout << "New Client appeared on port: " << sock->getPort() << std::endl;
-
 		// accept connection on server socket and get fd for new Client
 		errno = 0;
 		int newClient = accept(sock->getSockFd(), 0, 0);
@@ -133,7 +131,6 @@ public:
 	void handleClient(Socket *client)
 	{
 		char buff[MAX_BUFFER_SIZE];
-		std::cout << "Handle Client: " << client->getSockFd() << std::endl;
 
 		// receive data from client
 		int size = recv(client->getSockFd(), buff, MAX_BUFFER_SIZE, 0);
@@ -191,12 +188,8 @@ public:
 			return;
 		}
 
-		std::cout << client->keepAlive() << std::endl;
 		if (client->keepAlive())
 		{
-			std::cout << client->getSockFd() << ": Connection -> "
-					  << " keep-alive." << std::endl;
-
 			// reset res & req
 			this->_clients[client->getSockFd()].first = Request(this->_servConf, client->getSockAddr());
 			this->_clients[client->getSockFd()].second = Response();
@@ -208,8 +201,6 @@ public:
 		// else Connection -> close
 		else
 		{
-			std::cout << client->getSockFd() << ": Connection -> "
-					  << " close." << std::endl;
 			deleteFromSet(client->getSockFd(), this->_writeSet);
 			this->_clients.erase(client->getSockFd());
 			client->m_close();

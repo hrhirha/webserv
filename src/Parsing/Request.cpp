@@ -161,7 +161,7 @@ void Request::print(void)
 	Headers::iterator end = _headers.end();
 
 	std::cout << "Request is completed : [" << _requestCompleted << "]." << std::endl;
-	std::cout << "Body Size : [" << _BodySize << "]." << std::endl;
+	std::cout << "Body size : [" << _BodySize << "]." << std::endl;
 	std::cout << "error found = [" << _Error << "]" << std::endl;
 	std::cout << "_method = [" << _method << "] | _path = [" << _path << "]  | query = [" << _query << "] | version = [" << _version << "] . " << std::endl;
 	for (; beg != end; beg++)
@@ -201,7 +201,6 @@ void Request::Parse(std::string &req)
 	{
 		_requestCompleted = true;
 		_ServerBlock = (!_Error) ? _getValidServerCnf(_srvs, _addr) : _ServerBlock;
-		std::cout << "request built successefully\n";
 		return;
 	}
 	// Body treatment
@@ -218,7 +217,6 @@ void Request::Parse(std::string &req)
 			system(concat.c_str());
 		}
 		_requestCompleted = true;
-		std::cout << "request built successefully\n";
 	}
 };
 

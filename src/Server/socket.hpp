@@ -16,7 +16,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define QUEUE_SIZE 10
+#define QUEUE_SIZE 1024
 
 class Socket
 {
@@ -56,17 +56,12 @@ public:
 
             // prepare the server for incoming clients requests
             listen(this->_sockfd, QUEUE_SIZE);
-            std::cout << "Server listening on port: " << this->_port << std::endl;
         }
     }
 
     bool isServSock() const { return this->_isServSock; }
     bool keepAlive() const { return this->_keepAlive; }
-    void m_close() const
-    {
-        std::cout << "Closing --> " << this->_sockfd << std::endl;
-        close(this->_sockfd);
-    }
+    void m_close() const{close(this->_sockfd);}
     void setPort(int port) { this->_port = port; }
     void setHost(std::string host) { this->_host = host; }
     struct sockaddr_in getSockAddr() { return this->_serv_addr; }

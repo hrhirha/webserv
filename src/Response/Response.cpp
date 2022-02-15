@@ -212,7 +212,6 @@ bool Response::_handlePostRequest(size_t port, std::string fpath)
 		return _handleCGI(fpath);
 	if (!st_ret && S_ISDIR(st.st_mode)) // Handle directory
 		return _handlePostDir(fpath, st, port);
-	std::cout << "stat = " << st_ret << ",  error = " << strerror(errno) << "\n";
 	return _resGenerate(405);
 }
 
