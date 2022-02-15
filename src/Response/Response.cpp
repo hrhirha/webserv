@@ -717,9 +717,9 @@ bool Response::_resGenerate(size_t code, std::string redir)
 	error error_pages = _srv.geterror_pages();
 	_body = error_pages.second;
 	struct stat st;
-	stat(_body.c_str(), &st);
-	_headers["Content-Length"] = utostr(st.st_size);
-	if (std::find(error_pages.first.begin(), error_pages.first.end(), _statusCode) == error_pages.first.end())
+	int st_ret = stat(_body.c_str(), &st);
+	if (!st_ret) _headers["Content-Length"] = utostr(st.st_size);
+	if (std::find(error_pages.first.begin(), error_pages.first.end(), _statusCode) == error_pages.first.end() || st_ret == -1)
 	{
 		gettimeofday(&tv, NULL);
 		_body = "/tmp/" + utostr(code) + "_" + utostr(tv.tv_sec * 1e6 + tv.tv_usec) + ".html";
