@@ -16,7 +16,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define QUEUE_SIZE 1024
+#define QUEUE_SIZE 1000
 
 class Socket
 {

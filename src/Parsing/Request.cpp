@@ -209,7 +209,6 @@ void Request::Parse(std::string &req)
 	{
 		_fstream.close();
 		_ServerBlock = _getValidServerCnf(_srvs, _addr);
-		std::cout << "Server block port : " << _ServerBlock.getPort() << std::endl;
 		_Error = (!_Error && _ServerBlock.getclient_max_body_size() < _HowMuchShouldRead) ? BAD_REQUEST : _Error;
 		if (_Error)
 		{

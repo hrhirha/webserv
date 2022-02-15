@@ -47,6 +47,7 @@ class Response
 		int					_pid;
 		int					_fd;
 		time_t				_timeout;
+		std::vector<std::pair<std::string, std::string> > _cgi_headers;
 		// for directory listing
 		std::fstream		_fs;
 		DIR					*_dir;

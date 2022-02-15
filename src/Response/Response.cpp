@@ -4,19 +4,19 @@ std::string Response::_httpVersion = "HTTP/1.1";
 
 Response::Response() : _statusCode(0), _statusMsg(), _headers(), _body(),
 					   _req(), _srv(), _loc(),
-					   _pid(-1), _fd(-1), _timeout(0),
+					   _pid(-1), _fd(-1), _timeout(0), _cgi_headers(),
 					   _fs(), _dir(NULL), _dpath(),
 					   _ready(false), _done(false),
 					   _req_fd(-1), _boundary(), _first_call(true)
 {
 	_headers["Server"] = "WebServ/1.0";
-	_headers["Connection"] = "close";
+	_headers["Connection"] = "keep-alive";
 	_headers["Content-Type"] = "application/octet-stream";
 }
 
 Response::Response(Response const &res) : _statusCode(0), _statusMsg(), _headers(), _body(),
 										  _req(), _srv(), _loc(),
-										  _pid(-1), _fd(-1), _timeout(0),
+										  _pid(-1), _fd(-1), _timeout(0), _cgi_headers(),
 										  _fs(), _dir(NULL), _dpath(),
 										  _ready(false), _done(false),
 										  _req_fd(-1), _boundary()
@@ -39,6 +39,7 @@ Response &Response::operator=(Response const &res)
 	if (res._fd > -1)
 		_fd = dup(res._fd);
 	_timeout = res._timeout;
+	_cgi_headers = res._cgi_headers;
 
 	if (res._fs.is_open())
 		_fs.open(_body.c_str(), std::ios_base::out | std::ios_base::binary);
@@ -75,6 +76,7 @@ Response::~Response()
 		_fd = -1;
 	}
 	_timeout = 0;
+	_cgi_headers.clear();
 
 	_fs.close();
 	if (_dir)
@@ -134,6 +136,9 @@ std::string Response::get()
 	ret.append(" " + utostr(_statusCode) + " " + _statusMsg + "\r\n");
 	for (Headers::iterator it = _headers.begin(); it != _headers.end(); it++)
 		ret.append(it->first + ": " + it->second + "\r\n");
+	// append cgi headers
+	for (size_t i = 0; i < _cgi_headers.size(); i++)
+		ret.append(_cgi_headers[i].first + ": " + _cgi_headers[i].second + "\r\n");
 	ret.append("\r\n");
 	_first_call = false;
 	return _readResBody(ret);
@@ -243,6 +248,11 @@ bool Response::_preHandleDir(std::string &fpath, size_t port, bool &cgi)
 	std::string tmpreq = _req.getpath();
 	while (1)
 	{
+		if (_checkLoc())
+		{
+			_req.getpath() = tmpreq;
+			return true;
+		}
 		if (!_loc.getPathCgi().empty())
 		{
 			_req.getpath() = tmpreq;
@@ -254,8 +264,6 @@ bool Response::_preHandleDir(std::string &fpath, size_t port, bool &cgi)
 			break ;
 	}
 	_req.getpath() = tmpreq;
-	if (_checkLoc())
-		return true;
 	return false;
 }
 
@@ -334,7 +342,7 @@ bool Response::_readDir()
 	while ((ent = readdir(_dir)))
 	{
 		gettimeofday(&tv, NULL);
-		if (tv.tv_usec - utm >= 1e4)
+		if (tv.tv_usec - utm >= 1e3)
 			return false;
 		std::string name = ent->d_name;
 		if (name[0] == '.')
@@ -644,17 +652,12 @@ bool Response::_readFromCGI()
 
 bool Response::_getCgiHeaders(std::string &buffer)
 {
-	// static bool done = false;
 	std::string h("");
 	size_t i, j;
-
-	// if (done)
-		// return true;
 
 	i = buffer.find("\r\n\r\n");
 	if (i == std::string::npos)
 		return false;
-	// done = true;
 	h = buffer.substr(0, i + 2);
 	buffer = buffer.substr(i + 4);
 	i = h.find("\r\n");
@@ -665,9 +668,17 @@ bool Response::_getCgiHeaders(std::string &buffer)
 		j = sub.find(":");
 		if (j != std::string::npos)
 		{
-			std::string ct = sub.substr(0, j);
-			ct = (ct == "Content-type") ? "Content-Type" : ct;
-			_headers[ct] = sub.substr(j + 2);
+			std::string key = sub.substr(0, j);
+			key = (key == "Content-type") ? "Content-Type" : key;
+			std::string val = sub.substr(j + 2);
+			// cgi header
+			if (_headers.count(key) && key != "Content-Type")
+			{
+				std::pair<std::string,std::string> new_header = std::make_pair(key, val);
+				_cgi_headers.push_back(new_header);
+			}
+			else
+				_headers[key] = val;
 		}
 		i = h.find("\r\n");
 	}

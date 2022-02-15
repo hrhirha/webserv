@@ -11,6 +11,7 @@
 /* ************************************************************************** */
 
 #include "ServerCnf.hpp"
+#include <cerrno>
 
 /*			Constructor 			*/
 ServerCnf::ServerCnf(void) : _host("0.0.0.0"), _port(80),
@@ -20,7 +21,7 @@ ServerCnf::ServerCnf(void) : _host("0.0.0.0"), _port(80),
 ServerCnf::ServerCnf(const std::string &file) : _host("0.0.0.0"), _port(80),
 												_client_max_body_size(-1), _fillSrvCompleted(false)
 {
-	_ifs.open(file, std::ifstream::in);
+	_ifs.open(file.c_str(), std::ifstream::in);
 	if (_ifs.good())
 		parse();
 	else
