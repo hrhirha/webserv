@@ -91,6 +91,14 @@ std::string	specRes(size_t n)
 </body>\r\n\
 </html>\r\n";
 
+	sr[413] = "<html>\r\n\
+<head><title>413 Request Entity Too Large</title></head>\r\n\
+<body>\r\n\
+<center><h1>413 Request Entity Too Large</h1></center>\r\n\
+<hr><center>webserv/1.0</center>\r\n\
+</body>\r\n\
+</html>\r\n";
+
 	sr[500] = "<html>\r\n\
 <head><title>500 Internal Server Error</title></head>\r\n\
 <body>\r\n\
@@ -149,7 +157,7 @@ std::string statusMessage(size_t code)
 	sm[410] = "Gone";
 	sm[411] = "Length Required";
 	sm[412] = "Precondition Failed";
-	sm[413] = "Payload Too Large";
+	sm[413] = "Request Entity Too Large";
 	sm[414] = "Request-URI Too Long";
 	sm[415] = "Unsupported Media Type";
 	sm[416] = "Requested Range Not Satisfiable";

@@ -6,7 +6,7 @@
 /*   By: ibouhiri <ibouhiri@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/11/19 18:28:22 by mlasrite          #+#    #+#             */
-/*   Updated: 2022/02/12 16:37:00 by ibouhiri         ###   ########.fr       */
+/*   Updated: 2022/02/16 18:03:35 by ibouhiri         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -138,6 +138,7 @@ public:
 		{
 			std::cout << strerror(errno) << std::endl;
 			deleteFromSet(client->getSockFd(), this->_readSet);
+			deleteFromSet(client->getSockFd(), this->_writeSet);
 			this->_clients.erase(client->getSockFd());
 			client->m_close();
 			std::vector<Socket *>::iterator position = std::find(this->_sockets.begin(), this->_sockets.end(), client);
@@ -177,14 +178,26 @@ public:
 
 		if (!response.empty())
 		{
-			send(client->getSockFd(), response.c_str(), response.size(), 0);
+			int size = send(client->getSockFd(), response.c_str(), response.size(), 0);
+			if (size == -1)
+			{
+				deleteFromSet(client->getSockFd(), this->_readSet);
+				deleteFromSet(client->getSockFd(), this->_writeSet);
+				this->_clients.erase(client->getSockFd());
+				client->m_close();
+				std::vector<Socket *>::iterator position = std::find(this->_sockets.begin(), this->_sockets.end(), client);
+				if (position != this->_sockets.end())
+				{
+					delete (*position);
+					this->_sockets.erase(position);
+				}
+				return;
+			}
 		}
 
 		bool isDone = this->_clients[client->getSockFd()].second.done();
 		if (!isDone)
-		{
 			return;
-		}
 
 		if (client->keepAlive())
 		{

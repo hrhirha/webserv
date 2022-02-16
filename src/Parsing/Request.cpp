@@ -6,7 +6,7 @@
 /*   By: ibouhiri <ibouhiri@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/12/21 09:37:15 by ibouhiri          #+#    #+#             */
-/*   Updated: 2022/02/12 16:35:58 by ibouhiri         ###   ########.fr       */
+/*   Updated: 2022/02/16 19:42:46 by ibouhiri         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,7 @@
 // status code defines
 #define BAD_REQUEST 400
 #define HTTP_VERSION_NOT_SUPPORTED 505
+#define TOO_LARGE 413
 
 // isdigit fonction
 bool isStrDigit(const std::string &str)
@@ -209,7 +210,7 @@ void Request::Parse(std::string &req)
 	{
 		_fstream.close();
 		_ServerBlock = _getValidServerCnf(_srvs, _addr);
-		_Error = (!_Error && _ServerBlock.getclient_max_body_size() < _HowMuchShouldRead) ? BAD_REQUEST : _Error;
+		_Error = (!_Error && _ServerBlock.getclient_max_body_size() < _HowMuchShouldRead) ? TOO_LARGE : _Error;
 		if (_Error)
 		{
 			std::string concat = "rm " + _body;
