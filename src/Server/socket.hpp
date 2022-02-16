@@ -6,7 +6,7 @@
 /*   By: ibouhiri <ibouhiri@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/11/20 14:27:13 by mlasrite          #+#    #+#             */
-/*   Updated: 2022/02/12 16:26:29 by ibouhiri         ###   ########.fr       */
+/*   Updated: 2022/02/16 15:55:50 by hrhirha          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -52,10 +52,10 @@ public:
             this->_serv_addr.sin_addr.s_addr = inet_addr(this->_host.c_str());
 
             // asign address to socket
-            int bnd = bind(this->_sockfd, (struct sockaddr *)&this->_serv_addr, sizeof(this->_serv_addr));
+            bind(this->_sockfd, (struct sockaddr *)&this->_serv_addr, sizeof(this->_serv_addr));
 
             // prepare the server for incoming clients requests
-            int lsn = listen(this->_sockfd, QUEUE_SIZE);
+            listen(this->_sockfd, QUEUE_SIZE);
         }
     }
 

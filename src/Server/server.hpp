@@ -86,13 +86,7 @@ public:
 
 		// wait for events in ReadSet and WriteSet
 		int result = select(this->_maxFd + 1, &tmpReadSet, &tmpWriteSet, NULL, &timeLimit);
-		if (result == -1)
-		{
-			clean();
-			startServSockets();
-			fillSockSet();
-		}
-		else if (result > 0)
+		if (result > 0)
 		{
 			for (size_t i = 0; i < this->_sockets.size(); i++)
 			{
@@ -117,10 +111,10 @@ public:
 	void acceptNewClient(Socket *sock)
 	{
 		// accept connection on server socket and get fd for new Client
+		errno = 0;
 		int newClient = accept(sock->getSockFd(), 0, 0);
 		Socket *client = new Socket(false);
 		client->setSockFd(newClient);
-		fcntl(client->getSockFd(), F_SETFL, O_NONBLOCK);
 
 		client->setSockAddr(sock->getSockAddr());
 		Request req(this->_servConf, sock->getSockAddr());
@@ -142,6 +136,7 @@ public:
 		// if an error occured or when a stream socket peer has performed a shutdown.
 		if (size == -1 || size == 0)
 		{
+			std::cout << strerror(errno) << std::endl;
 			deleteFromSet(client->getSockFd(), this->_readSet);
 			this->_clients.erase(client->getSockFd());
 			client->m_close();

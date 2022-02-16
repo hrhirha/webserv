@@ -1,1 +1,0 @@
-name=Hamza&password=password12345

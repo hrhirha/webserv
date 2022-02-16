@@ -583,7 +583,7 @@ bool Response::_waitProc()
 	{
 		struct timeval tv;
 		int status = 0;
-		usleep(1e4);
+		//usleep(1e4);
 		int result = waitpid(_pid, &status, WNOHANG);
 		status = WEXITSTATUS(status);
 		if (result == -1 || (status > 0 && status < 255)) // Error
