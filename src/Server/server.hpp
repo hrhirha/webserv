@@ -88,8 +88,9 @@ public:
 		int result = select(this->_maxFd + 1, &tmpReadSet, &tmpWriteSet, NULL, &timeLimit);
 		if (result == -1)
 		{
-			std::cerr << "select() failed: "<< strerror(errno) << std::endl;
-			exit(1);
+			clean();
+			startServSockets();
+			fillSockSet();
 		}
 		else if (result > 0)
 		{
@@ -119,6 +120,7 @@ public:
 		int newClient = accept(sock->getSockFd(), 0, 0);
 		Socket *client = new Socket(false);
 		client->setSockFd(newClient);
+		fcntl(client->getSockFd(), F_SETFL, O_NONBLOCK);
 
 		client->setSockAddr(sock->getSockAddr());
 		Request req(this->_servConf, sock->getSockAddr());
@@ -140,7 +142,6 @@ public:
 		// if an error occured or when a stream socket peer has performed a shutdown.
 		if (size == -1 || size == 0)
 		{
-			std::cerr << "recv() failed: " << strerror(errno) << " ("<< errno << ")" << std::endl;
 			deleteFromSet(client->getSockFd(), this->_readSet);
 			this->_clients.erase(client->getSockFd());
 			client->m_close();

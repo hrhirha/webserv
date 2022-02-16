@@ -10,7 +10,7 @@ Response::Response() : _statusCode(0), _statusMsg(), _headers(), _body(),
 					   _req_fd(-1), _boundary(), _first_call(true)
 {
 	_headers["Server"] = "WebServ/1.0";
-	_headers["Connection"] = "keep-alive";
+	_headers["Connection"] = "close";
 	_headers["Content-Type"] = "application/octet-stream";
 }
 
@@ -105,6 +105,9 @@ bool Response::build(Request const &req)
 	if (_req_fd > 0)
 		return _parseBody();
 	_req = req;
+	Headers::iterator it = _req.getheaders().find("Connection");
+	if (it != _req.getheaders().end() && it->second == "keep-alive")
+		_headers["Connection"] = "keep-alive";
 	_statusCode = _req.getError();
 	_srv = _req.getServerBlock();
 	_loc = _getValidLocation(_srv.getlocs());

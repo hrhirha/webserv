@@ -16,7 +16,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define QUEUE_SIZE 1000
+#define QUEUE_SIZE 1024
 
 class Socket
 {
@@ -52,10 +52,10 @@ public:
             this->_serv_addr.sin_addr.s_addr = inet_addr(this->_host.c_str());
 
             // asign address to socket
-            bind(this->_sockfd, (struct sockaddr *)&this->_serv_addr, sizeof(this->_serv_addr));
+            int bnd = bind(this->_sockfd, (struct sockaddr *)&this->_serv_addr, sizeof(this->_serv_addr));
 
             // prepare the server for incoming clients requests
-            listen(this->_sockfd, QUEUE_SIZE);
+            int lsn = listen(this->_sockfd, QUEUE_SIZE);
         }
     }
 
