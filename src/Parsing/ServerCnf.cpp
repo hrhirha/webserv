@@ -6,7 +6,7 @@
 /*   By: ibouhiri <ibouhiri@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/01/04 12:16:11 by ibouhiri          #+#    #+#             */
-/*   Updated: 2022/02/12 15:41:13 by ibouhiri         ###   ########.fr       */
+/*   Updated: 2022/02/17 12:16:34 by ibouhiri         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,11 +14,11 @@
 #include <cerrno>
 
 /*			Constructor 			*/
-ServerCnf::ServerCnf(void) : _host("0.0.0.0"), _port(80),
+ServerCnf::ServerCnf(void) : _checkPort(true) , _host("0.0.0.0"), _port(80),
 							 _client_max_body_size(-1), _fillSrvCompleted(false){};
 
 /*			Parameters Constructor 	*/
-ServerCnf::ServerCnf(const std::string &file) : _host("0.0.0.0"), _port(80),
+ServerCnf::ServerCnf(const std::string &file) : _checkPort(true), _host("0.0.0.0"), _port(80),
 												_client_max_body_size(-1), _fillSrvCompleted(false)
 {
 	_ifs.open(file.c_str(), std::ifstream::in);
@@ -43,6 +43,7 @@ ServerCnf::ServerCnf(const ServerCnf &serv)
 /*			Operator= 				*/
 ServerCnf &ServerCnf::operator=(const ServerCnf &serv)
 {
+	_checkPort = serv._checkPort;
 	_host = serv.getHost();
 	_port = serv.getPort();
 	_server_names = serv.getserver_names();
@@ -178,8 +179,11 @@ void ServerCnf::fillServer(std::string &line, ServerCnf &inst)
 			inst._fillSrvCompleted = true;
 		else if (SplitedVec[i] == "host" && VecSize == 2)
 			inst._host = SplitedVec[++i];
-		else if (SplitedVec[i] == "port" && VecSize == 2)
+		else if (SplitedVec[i] == "port" && VecSize == 2 && inst._checkPort)
+		{
+			inst._checkPort = false;
 			inst._port = (isStrDigit(SplitedVec.back())) ? to_sizeT(SplitedVec[++i]) : ErrorPrint();
+		}
 		else if (SplitedVec[i] == "client_max_body_size" && VecSize == 2)
 			inst._client_max_body_size = (isStrDigit(SplitedVec.back())) ? to_sizeT(SplitedVec[++i]) : ErrorPrint();
 		else if (SplitedVec[i] == "error_pages" && VecSize > 2) /* Fill error pages and Path */
@@ -202,7 +206,7 @@ void ServerCnf::fillServer(std::string &line, ServerCnf &inst)
 		}
 		else
 		{
-			std::cout << "Error [" << SplitedVec[0] << "]" << std::endl;
+			// std::cout << "Error [" << SplitedVec[0] << "]" << "VecSize [" << VecSize << "] == " << _checkPort <<std::endl;
 			ErrorPrint();
 		}
 	}

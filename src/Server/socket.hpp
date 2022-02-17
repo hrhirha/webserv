@@ -6,7 +6,7 @@
 /*   By: ibouhiri <ibouhiri@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/11/20 14:27:13 by mlasrite          #+#    #+#             */
-/*   Updated: 2022/02/16 15:55:50 by hrhirha          ###   ########.fr       */
+/*   Updated: 2022/02/17 12:37:29 by ibouhiri         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,7 +43,11 @@ public:
         {
             // create socket
             this->_sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
+            if (_sockfd == -1)
+            {
+                std::cout << "socket failed: " << strerror(errno) << std::endl;
+                _exit(-1);
+            }
             // assign  Ip, convert port to network byte order and assign local address
             this->_serv_addr.sin_family = AF_INET;
             this->_serv_addr.sin_port = htons(this->_port);
@@ -52,10 +56,17 @@ public:
             this->_serv_addr.sin_addr.s_addr = inet_addr(this->_host.c_str());
 
             // asign address to socket
-            bind(this->_sockfd, (struct sockaddr *)&this->_serv_addr, sizeof(this->_serv_addr));
-
+            if (bind(this->_sockfd, (struct sockaddr *)&this->_serv_addr, sizeof(this->_serv_addr)) == -1)
+            {
+                std::cout << "bind failed: " << strerror(errno) << std::endl;
+                _exit(-1);
+            }
             // prepare the server for incoming clients requests
-            listen(this->_sockfd, QUEUE_SIZE);
+            if (listen(this->_sockfd, QUEUE_SIZE) == -1)
+            {
+                std::cout << "listen failed: " << strerror(errno) << std::endl;
+                _exit(-1);
+            }
         }
     }
 

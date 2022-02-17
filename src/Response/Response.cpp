@@ -344,14 +344,14 @@ bool Response::_readDir()
 	utm = tv.tv_usec;
 	while ((ent = readdir(_dir)))
 	{
-		gettimeofday(&tv, NULL);
-		if (tv.tv_usec - utm >= 1e3)
-			return false;
 		std::string name = ent->d_name;
 		if (name[0] == '.')
 			continue;
 		stat((_dpath + name).c_str(), &st);
 		_fs << getHyperlinkTag(name, st);
+		gettimeofday(&tv, NULL);
+		if (tv.tv_usec - utm >= 1e3)
+			return false;
 	}
 	_fs << "</pre><hr></body>\n</html>";
 	closedir(_dir);

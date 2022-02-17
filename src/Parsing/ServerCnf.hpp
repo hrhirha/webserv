@@ -6,9 +6,10 @@
 /*   By: ibouhiri <ibouhiri@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/01/04 12:16:09 by ibouhiri          #+#    #+#             */
-/*   Updated: 2022/02/08 13:00:01 by ibouhiri         ###   ########.fr       */
+/*   Updated: 2022/02/17 12:07:44 by ibouhiri         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
+
 #ifndef SERVERCNF_HPP
 #define SERVERCNF_HPP
 
@@ -22,6 +23,7 @@ class ServerCnf
 {
 	private:
 	/*			Attributs			*/
+		bool							_checkPort;
 		std::string						_host;
 		size_t							_port;
 		std::vector<std::string>		_server_names;
