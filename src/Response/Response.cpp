@@ -394,18 +394,32 @@ bool Response::_handlePostDir(std::string fpath, struct stat st, size_t port)
 
 bool Response::_handleUpload()
 {
-	std::string multipart = "multipart/form-data";
-	std::string ct = _req.getheaders()["Content-Type"];
+	struct timeval	tv;
+	std::string		multipart = "multipart/form-data";
+	std::string		ct = _req.getheaders()["Content-Type"];
 
+	gettimeofday(&tv, NULL);
+	_body = "/tmp/upload_" + utostr(tv.tv_sec * 1e6 + tv.tv_usec);
+	_fs.open(_body.c_str(), std::ios_base::out | std::ios_base::binary);
 	if (ct.substr(0, multipart.size()) == multipart)
 	{
 		size_t i = ct.find("boundary=");
 		_boundary = i != std::string::npos ? ct.substr(i + 9) : "";
 		_req_fd = open(_req.getbody().c_str(), O_RDONLY);
 		if (_req_fd == -1)
+		{
+			_fs.close();
+			remove(_body.c_str());
 			return _resGenerate(errno == EMFILE ? 500 : 200);
+		}
 		return _parseBody();
 	}
+	std::string cmd = "cp " + _req.getbody() + " " + _loc.getUpload_path()
+		+ (_loc.getUpload_path()[_loc.getUpload_path().size() - 1] != '/' ? "/" : "")
+		+ _body.substr(_body.find_last_of('/'));
+	_fs.close();
+	system(cmd.c_str());
+	remove(_body.c_str());
 	return _resGenerate(200);
 }
 
@@ -414,11 +428,11 @@ bool Response::_parseBody()
 	char buf[1048576];
 	static std::string buffer;
 	static Headers th;
-	struct timeval tv;
 
 	int sel = _select(_req_fd);
 	if (sel == -1) // select failed
 	{
+		_fs.close();
 		close(_req_fd);
 		_req_fd = -1;
 		_ready = true;
@@ -437,14 +451,11 @@ bool Response::_parseBody()
 		std::string header_str = buffer.substr(line.size(), end + 2);
 		buffer = buffer.substr(end + 4);
 		th = strToHeaders((char *)header_str.c_str());
-		gettimeofday(&tv, NULL);
-		_body = "/tmp/upload_" + utostr(tv.tv_sec * 1e6 + tv.tv_usec);
-		_fs.open(_body.c_str(), std::ios_base::out | std::ios_base::binary);
 	}
-	return _newPart(buffer, th);
+	return _newPart(buffer, th, rd);
 }
 
-bool Response::_newPart(std::string &buffer, Headers &th)
+bool Response::_newPart(std::string &buffer, Headers &th, int rd)
 {
 	std::string line = "--" + _boundary + "\r\n";
 	std::string end_line = "--" + _boundary + "--\r\n";
@@ -456,6 +467,15 @@ bool Response::_newPart(std::string &buffer, Headers &th)
 		{
 			_fs << buffer.substr(0, buffer.size() - end_line.size());
 			buffer = buffer.substr(buffer.size() - end_line.size());
+		}
+		if (rd == 0)
+		{
+			_fs << buffer;
+			buffer.clear();
+			_moveUploadedFile(th, false);
+			close(_req_fd);
+			_req_fd = -1;
+			return _resGenerate(200);
 		}
 		return false;
 	}
@@ -474,7 +494,7 @@ bool Response::_newPart(std::string &buffer, Headers &th)
 	return _resGenerate(200);
 }
 
-void Response::_moveUploadedFile(Headers &th)
+void Response::_moveUploadedFile(Headers &th, bool multi)
 {
 	_fs.close();
 	std::string filename = th["Content-Disposition"];
@@ -485,9 +505,17 @@ void Response::_moveUploadedFile(Headers &th)
 		filename = filename.substr(0, filename.size() - 1);
 		if (!filename.empty())
 		{
-			std::string cmd = "cp " + _body + " " + _loc.getLocation_root() + _loc.getUpload_path() + (_loc.getUpload_path()[_loc.getUpload_path().size() - 1] != '/' ? "/" : "") + filename;
+			std::string cmd = "cp " + _body + " " + _loc.getUpload_path()
+				+ (_loc.getUpload_path()[_loc.getUpload_path().size() - 1] != '/' ? "/" : "") + filename;
 			system(cmd.c_str());
 		}
+	}
+	if (!multi)
+	{
+		std::string cmd = "cp " + _body + " " + _loc.getUpload_path()
+			+ (_loc.getUpload_path()[_loc.getUpload_path().size() - 1] != '/' ? "/" : "");
+		system(cmd.c_str());
+
 	}
 	remove(_body.c_str());
 	_body.clear();

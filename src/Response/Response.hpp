@@ -93,8 +93,8 @@ class Response
 		bool	_handlePostDir(std::string, struct stat, size_t);
 		bool	_handleUpload();
 		bool	_parseBody();
-		bool	_newPart(std::string &, Headers &);
-		void	_moveUploadedFile(Headers &);
+		bool	_newPart(std::string &, Headers &, int);
+		void	_moveUploadedFile(Headers &, bool=true);
 
 		bool	_handleCGI(std::string);
 		char	**_getCGIArgs(std::string const &);

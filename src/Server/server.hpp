@@ -136,7 +136,6 @@ public:
 		// if an error occured or when a stream socket peer has performed a shutdown.
 		if (size == -1 || size == 0)
 		{
-			std::cout << strerror(errno) << std::endl;
 			deleteFromSet(client->getSockFd(), this->_readSet);
 			deleteFromSet(client->getSockFd(), this->_writeSet);
 			this->_clients.erase(client->getSockFd());
