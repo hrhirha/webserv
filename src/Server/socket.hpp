@@ -15,6 +15,8 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <cerrno>
+#include <cstring>
 
 #define QUEUE_SIZE 1024
 

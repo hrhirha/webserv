@@ -15,6 +15,8 @@
 #include <algorithm>
 #include <map>
 #include <sys/time.h>
+#include <cerrno>
+#include <cstring>
 #include "../Response/Response.hpp"
 #define MAX_BUFFER_SIZE 1024 * 20
 
